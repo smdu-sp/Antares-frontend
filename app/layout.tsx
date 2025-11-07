@@ -14,7 +14,7 @@ const myFont = localFont({
 });
 
 export const metadata: Metadata = {
-	title: 'Template 2025',
+	title: 'Antares',
 	description: 'Template 2025',
 };
 
