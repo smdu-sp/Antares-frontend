@@ -6,6 +6,20 @@ export enum StatusAndamento {
 	PRORROGADO = 'PRORROGADO',
 }
 
+export interface IUsuario {
+	id: string;
+	nome: string;
+	nomeSocial?: string | null;
+	login: string;
+	email: string;
+	permissao: string;
+	status: boolean;
+	avatar?: string | null;
+	ultimoLogin: Date;
+	criadoEm: Date;
+	atualizadoEm: Date;
+}
+
 export interface IAndamento {
 	id: string;
 	origem: string;
@@ -18,7 +32,11 @@ export interface IAndamento {
 	criadoEm: Date;
 	atualizadoEm: Date;
 	processo_id: string;
+	usuario_id: string;
+	usuario_prorrogacao_id?: string | null;
 	processo?: IProcesso;
+	usuario?: IUsuario;
+	usuarioProrrogacao?: IUsuario | null;
 }
 
 export interface IProcesso {

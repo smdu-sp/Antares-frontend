@@ -78,6 +78,11 @@ export default {
 				session.usuario = jwtDecode(session.access_token);
 			const now = new Date();
 			if (session.usuario?.exp && session.usuario.exp * 1000 < now.getTime()) {
+				// Só tenta renovar se houver refresh_token
+				if (!session.refresh_token) {
+					return session;
+				}
+				
 				try {
 					const controller = new AbortController();
 					const timeoutId = setTimeout(() => controller.abort(), 10000);
@@ -105,7 +110,22 @@ export default {
 						if (access_token) session.usuario = jwtDecode(access_token);
 					}
 				} catch (error) {
-					console.error('Erro ao renovar token:', error);
+					// Trata erros de conexão de forma silenciosa
+					if (error instanceof Error) {
+						const isConnectionError = 
+							error.name === 'AbortError' || 
+							(error.cause as { code?: string })?.code === 'ECONNREFUSED' ||
+							error.message.includes('fetch failed');
+						
+						if (isConnectionError) {
+							// Backend não está disponível - log apenas em desenvolvimento
+							if (process.env.NODE_ENV === 'development') {
+								console.warn('Backend não está disponível. Verifique se o servidor está rodando em', process.env.NEXT_PUBLIC_API_URL);
+							}
+						} else {
+							console.error('Erro ao renovar token:', error);
+						}
+					}
 				}
 			}
 			if (session.access_token) {
@@ -125,8 +145,19 @@ export default {
 					
 					clearTimeout(timeoutId);
 				} catch (error) {
-					// Silenciosamente ignora erros de validação para não bloquear a sessão
-					console.warn('Erro ao validar usuário:', error);
+					// Trata erros de conexão de forma silenciosa
+					if (error instanceof Error) {
+						const isConnectionError = 
+							error.name === 'AbortError' || 
+							(error.cause as { code?: string })?.code === 'ECONNREFUSED' ||
+							error.message.includes('fetch failed');
+						
+						// Silenciosamente ignora erros de conexão para não bloquear a sessão
+						// Log apenas em desenvolvimento
+						if (!isConnectionError && process.env.NODE_ENV === 'development') {
+							console.warn('Erro ao validar usuário:', error);
+						}
+					}
 				}
 			}
 			return session;

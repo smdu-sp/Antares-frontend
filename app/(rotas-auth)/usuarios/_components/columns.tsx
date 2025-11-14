@@ -22,6 +22,18 @@ export const columns: ColumnDef<IUsuario>[] = [
 		header: 'E-mail',
 	},
 	{
+		accessorKey: 'unidade',
+		header: 'Unidade',
+		cell: ({ row }) => {
+			const unidade = row.original.unidade;
+			return (
+				<div>
+					{unidade ? `${unidade.nome} (${unidade.sigla})` : '-'}
+				</div>
+			);
+		},
+	},
+	{
 		accessorKey: 'status',
 		header: () => <p className='text-center'>Status</p>,
 		cell: ({ row }) => {

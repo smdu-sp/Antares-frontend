@@ -1,6 +1,6 @@
 /** @format */
 
-import { ChevronRight, House, LucideProps, Users } from 'lucide-react';
+import { ChevronRight, House, LucideProps, Users, FileText, Building2 } from 'lucide-react';
 
 import {
 	Collapsible,
@@ -57,6 +57,16 @@ export async function NavMain() {
 			titulo: 'Usuários',
 			url: '/usuarios',
 			permissao: 'usuario_buscar_tudo',
+		},
+		{
+			icone: Building2,
+			titulo: 'Unidades',
+			url: '/unidades',
+		},
+		{
+			icone: FileText,
+			titulo: 'Logs',
+			url: '/logs',
 		},
 	];
 

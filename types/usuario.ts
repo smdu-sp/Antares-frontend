@@ -1,5 +1,11 @@
 /** @format */
 
+export interface IUnidadeUsuario {
+	id: string;
+	nome: string;
+	sigla: string;
+}
+
 export interface IUsuario {
 	id: string;
 	nome: string;
@@ -12,6 +18,8 @@ export interface IUsuario {
 	criadoEm: Date;
 	atualizadoEm: Date;
 	nomeSocial?: string;
+	unidade_id: string;
+	unidade?: IUnidadeUsuario;
 }
 
 export enum IPermissao {
@@ -29,6 +37,7 @@ export interface ICreateUsuario {
 	permissao?: IPermissao;
 	status?: boolean;
 	nomeSocial?: string;
+	unidade_id: string;
 }
 
 export interface IUpdateUsuario {
@@ -37,6 +46,7 @@ export interface IUpdateUsuario {
 	nomeSocial?: string;
 	avatar?: string;
 	permissao?: IPermissao;
+	unidade_id?: string;
 }
 
 export interface IPaginadoUsuario {

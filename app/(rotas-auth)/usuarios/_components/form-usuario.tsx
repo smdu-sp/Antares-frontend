@@ -21,11 +21,13 @@ import {
 	SelectValue,
 } from '@/components/ui/select';
 import * as usuario from '@/services/usuarios';
+import { listaCompleta } from '@/services/unidades/query-functions';
 import { IPermissao, IUsuario } from '@/types/usuario';
+import { IUnidade } from '@/types/unidade';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
-import { useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { z } from 'zod';
@@ -35,6 +37,7 @@ const formSchemaUsuario = z.object({
 	login: z.string(),
 	email: z.string().email(),
 	permissao: z.enum(['DEV', 'TEC', 'ADM', 'USR']),
+	unidade_id: z.string().min(1, 'Unidade é obrigatória'),
 });
 
 const formSchema = z.object({
@@ -48,6 +51,9 @@ interface FormUsuarioProps {
 
 export default function FormUsuario({ isUpdating, user }: FormUsuarioProps) {
 	const [isPending, startTransition] = useTransition();
+	const [unidades, setUnidades] = useState<IUnidade[]>([]);
+	const [loadingUnidades, setLoadingUnidades] = useState(true);
+	
 	const formUsuario = useForm<z.infer<typeof formSchemaUsuario>>({
 		resolver: zodResolver(formSchemaUsuario),
 		defaultValues: {
@@ -56,6 +62,7 @@ export default function FormUsuario({ isUpdating, user }: FormUsuarioProps) {
 			nome: user?.nome || '',
 			permissao:
 				(user?.permissao as unknown as 'DEV' | 'TEC' | 'ADM' | 'USR') ?? 'USR',
+			unidade_id: user?.unidade_id || '',
 		},
 	});
 
@@ -67,6 +74,25 @@ export default function FormUsuario({ isUpdating, user }: FormUsuarioProps) {
 	});
 
 	const { data: session, update } = useSession();
+
+	// Buscar unidades ao montar o componente
+	useEffect(() => {
+		async function carregarUnidades() {
+			if (session?.access_token) {
+				try {
+					const response = await listaCompleta(session.access_token);
+					if (response.ok && response.data) {
+						setUnidades(response.data as IUnidade[]);
+					}
+				} catch (error) {
+					console.error('Erro ao carregar unidades:', error);
+				} finally {
+					setLoadingUnidades(false);
+				}
+			}
+		}
+		carregarUnidades();
+	}, [session]);
 
 	async function onSubmit(values: z.infer<typeof formSchema>) {
 		const token = session?.access_token;
@@ -95,6 +121,7 @@ export default function FormUsuario({ isUpdating, user }: FormUsuarioProps) {
 			if (isUpdating && user?.id) {
 				const resp = await usuario.atualizar(user?.id, {
 					permissao: values.permissao as unknown as IPermissao,
+					unidade_id: values.unidade_id,
 				});
 
 				if (resp.error) {
@@ -113,12 +140,13 @@ export default function FormUsuario({ isUpdating, user }: FormUsuarioProps) {
 					toast.success('Usuário Atualizado', { description: resp.status });
 				}
 			} else {
-				const { email, login, nome, permissao } = values;
+				const { email, login, nome, permissao, unidade_id } = values;
 				const resp = await usuario.criar({
 					email,
 					login,
 					nome,
 					permissao: permissao as unknown as IPermissao,
+					unidade_id,
 				});
 				if (resp.error) {
 					toast.error('Algo deu errado', { description: resp.error });
@@ -235,7 +263,7 @@ export default function FormUsuario({ isUpdating, user }: FormUsuarioProps) {
 								<FormLabel>Permissão</FormLabel>
 								<Select
 									onValueChange={field.onChange}
-									defaultValue={field.value}>
+									value={field.value}>
 									<FormControl>
 										<SelectTrigger>
 											<SelectValue placeholder={'Defina a permissão'} />
@@ -246,6 +274,35 @@ export default function FormUsuario({ isUpdating, user }: FormUsuarioProps) {
 										<SelectItem value='TEC'>Técnico</SelectItem>
 										<SelectItem value='ADM'>Administrador</SelectItem>
 										<SelectItem value='USR'>Usuário</SelectItem>
+									</SelectContent>
+								</Select>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
+					<FormField
+						control={formUsuario.control}
+						name='unidade_id'
+						render={({ field }) => (
+							<FormItem>
+								<FormLabel>Unidade</FormLabel>
+								<Select
+									onValueChange={field.onChange}
+									value={field.value}
+									disabled={loadingUnidades}>
+									<FormControl>
+										<SelectTrigger>
+											<SelectValue placeholder={loadingUnidades ? 'Carregando...' : 'Selecione a unidade'} />
+										</SelectTrigger>
+									</FormControl>
+									<SelectContent>
+										{unidades.map((unidade) => (
+											<SelectItem
+												key={unidade.id}
+												value={unidade.id}>
+												{unidade.nome} ({unidade.sigla})
+											</SelectItem>
+										))}
 									</SelectContent>
 								</Select>
 								<FormMessage />
