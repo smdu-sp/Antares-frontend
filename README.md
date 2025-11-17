@@ -20,7 +20,6 @@
     </a>
 </p>
 
-
 ## Instalação
 
 ```bash
@@ -47,7 +46,7 @@ Copie o código gerado para o campo AUTH_SECRET no arquivo .env
 
 ## Rodando a aplicação
 
-Por padrão, a aplicação rodará na porta 3001.
+Por padrão, a aplicação rodará na porta 3001. teste
 
 ```bash
 # atualiza a cada mudança nos arquivos
