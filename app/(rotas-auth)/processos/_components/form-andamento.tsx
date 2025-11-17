@@ -12,7 +12,6 @@ import {
 	FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { ICreateAndamento } from '@/types/processo';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -27,7 +26,6 @@ const formSchema = z.object({
 	origem: z.string().min(2, 'Origem deve ter ao menos 2 caracteres'),
 	destino: z.string().min(2, 'Destino deve ter ao menos 2 caracteres'),
 	prazo: z.string().min(1, 'Prazo é obrigatório'),
-	observacao: z.string().optional(),
 });
 
 export default function FormAndamento({
@@ -47,7 +45,6 @@ export default function FormAndamento({
 			origem: '',
 			destino: '',
 			prazo: '',
-			observacao: '',
 		},
 	});
 
@@ -126,26 +123,10 @@ export default function FormAndamento({
 								/>
 							</FormControl>
 							<FormMessage />
-						</FormItem>
-					)}
-				/>
-				<FormField
-					control={form.control}
-					name='observacao'
-					render={({ field }) => (
-						<FormItem>
-							<FormLabel>Observações (Opcional)</FormLabel>
-							<FormControl>
-								<Textarea
-									placeholder='Observações sobre o andamento'
-									{...field}
-								/>
-							</FormControl>
-							<FormMessage />
-						</FormItem>
-					)}
-				/>
-				<Button
+					</FormItem>
+				)}
+			/>
+			<Button
 					type='submit'
 					disabled={isPending}
 					className='w-full'>

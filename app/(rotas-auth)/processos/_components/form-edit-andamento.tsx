@@ -12,7 +12,6 @@ import {
 	FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { IAndamento, IUpdateAndamento, StatusAndamento } from '@/types/processo';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -32,7 +31,6 @@ const formSchema = z.object({
 	prazo: z.string().optional(),
 	prorrogacao: z.string().optional(),
 	conclusao: z.string().optional(),
-	observacao: z.string().optional(),
 });
 
 export default function FormEditAndamento({
@@ -67,7 +65,6 @@ export default function FormEditAndamento({
 			prazo: formatDateForInput(andamento.prazo),
 			prorrogacao: formatDateForInput(andamento.prorrogacao),
 			conclusao: formatDateForInput(andamento.conclusao),
-			observacao: andamento.observacao || '',
 		},
 	});
 
@@ -224,22 +221,6 @@ export default function FormEditAndamento({
 						)}
 					/>
 				</div>
-				<FormField
-					control={form.control}
-					name='observacao'
-					render={({ field }) => (
-						<FormItem>
-							<FormLabel>Observações (Opcional)</FormLabel>
-							<FormControl>
-								<Textarea
-									placeholder='Observações sobre o andamento'
-									{...field}
-								/>
-							</FormControl>
-							<FormMessage />
-						</FormItem>
-					)}
-				/>
 				<Button
 					type='submit'
 					disabled={isPending}

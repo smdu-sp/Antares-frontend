@@ -11,6 +11,8 @@ import { StatusAndamento } from '@/types/processo';
 import { Skeleton } from '@/components/ui/skeleton';
 import ModalEditAndamento from './modal-edit-andamento';
 import ModalDeleteAndamento from './modal-delete-andamento';
+import ModalAdicionarObservacao from './modal-adicionar-observacao';
+import ModalEditObservacao from './modal-edit-observacao';
 import { cn } from '@/lib/utils';
 import { calcularDiasRestantes, getStatusPrazo } from './utils';
 import { Card, CardContent } from '@/components/ui/card';
@@ -83,6 +85,48 @@ export default function AndamentosRow({
 			new Date(b.criadoEm).getTime() - new Date(a.criadoEm).getTime()
 		);
 	}, [andamentos]);
+
+	// Função auxiliar para parsear observação
+	const parsearObservacao = (obs: string) => {
+		const obsTrimmed = obs.trim();
+		if (!obsTrimmed) return null;
+		
+		// Procura pelo padrão [data] autor: no início
+		// Primeiro tenta encontrar o padrão completo
+		const match = obsTrimmed.match(/^\[([^\]]+)\]\s+([^:]+):\s*(.*)$/s);
+		if (match && match.length >= 4) {
+			const dataHora = match[1]?.trim();
+			const autor = match[2]?.trim();
+			const texto = match[3]?.trim() || '';
+			
+			if (dataHora && autor) {
+				return {
+					dataHora,
+					autor,
+					texto,
+				};
+			}
+		}
+		
+		// Se não encontrou, tenta uma abordagem alternativa: dividir por primeira quebra de linha
+		const primeiraLinha = obsTrimmed.split('\n')[0];
+		const matchLinha = primeiraLinha.match(/^\[([^\]]+)\]\s+([^:]+):/);
+		if (matchLinha && matchLinha.length >= 3) {
+			const dataHora = matchLinha[1]?.trim();
+			const autor = matchLinha[2]?.trim();
+			const texto = obsTrimmed.substring(primeiraLinha.length + 1).trim();
+			
+			if (dataHora && autor) {
+				return {
+					dataHora,
+					autor,
+					texto,
+				};
+			}
+		}
+		
+		return null;
+	};
 
 	if (loading) {
 		return (
@@ -228,126 +272,185 @@ export default function AndamentosRow({
 															</div>
 														</div>
 
-														{/* Alerta de conclusão ou prorrogação */}
-														{and.conclusao && (
-															<div className='bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2'>
-																<CheckCircle2 className='h-4 w-4' />
-																<span>
-																	<strong>CONCLUÍDO</strong> em{' '}
-																	{new Date(and.conclusao).toLocaleDateString('pt-BR', {
-																		day: '2-digit',
-																		month: '2-digit',
-																		year: 'numeric',
-																	})}
-																</span>
-															</div>
-														)}
-														{and.prorrogacao && !and.conclusao && (
-															<div className='bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2'>
-																<AlertCircle className='h-4 w-4' />
-																<span>
-																	<strong>PRORROGADO</strong> - Nova data limite:{' '}
-																	{new Date(and.prorrogacao).toLocaleDateString('pt-BR', {
-																		day: '2-digit',
-																		month: '2-digit',
-																		year: 'numeric',
-																	})}
-																	{and.usuarioProrrogacao && (
-																		<> por <strong>{and.usuarioProrrogacao.nomeSocial || and.usuarioProrrogacao.nome}</strong></>
-																	)}
-																</span>
-															</div>
-														)}
-
-														<Separator />
-
-														{/* Informações do andamento */}
-														<div className='grid grid-cols-1 md:grid-cols-2 gap-4 text-sm'>
-															<div className='space-y-2'>
-																<div className='flex items-start gap-2'>
-																	<span className='text-muted-foreground min-w-[60px]'>Origem:</span>
-																	<span className='font-medium'>{and.origem}</span>
-																</div>
-																<div className='flex items-center gap-2'>
-																	<ArrowRight className='h-4 w-4 text-muted-foreground ml-[60px]' />
-																</div>
-																<div className='flex items-start gap-2'>
-																	<span className='text-muted-foreground min-w-[60px]'>Destino:</span>
-																	<span className='font-medium'>{and.destino}</span>
-																</div>
-															</div>
-															<div className='space-y-2'>
-																<div className='flex items-start gap-2'>
-																	<span className='text-muted-foreground min-w-[100px]'>Prazo Original:</span>
-																	<span className='font-medium'>
-																		{new Date(and.prazo).toLocaleDateString('pt-BR', {
-																			day: '2-digit',
-																			month: '2-digit',
-																			year: 'numeric',
-																		})}
-																	</span>
-																</div>
-																{and.prorrogacao && (
-																	<>
-																		<div className='flex items-start gap-2'>
-																			<span className='text-muted-foreground min-w-[100px]'>Prazo Prorrogado:</span>
-																			<span className='font-medium text-orange-600 dark:text-orange-400'>
-																				{new Date(and.prorrogacao).toLocaleDateString('pt-BR', {
-																					day: '2-digit',
-																					month: '2-digit',
-																					year: 'numeric',
-																				})}
-																			</span>
-																		</div>
-																		{and.usuarioProrrogacao && (
-																			<div className='flex items-start gap-2'>
-																				<span className='text-muted-foreground min-w-[100px]'>Prorrogado por:</span>
-																				<span className='font-medium text-orange-600 dark:text-orange-400 flex items-center gap-1'>
-																					<User className='h-3 w-3' />
-																					{and.usuarioProrrogacao.nomeSocial || and.usuarioProrrogacao.nome}
-																				</span>
-																			</div>
-																		)}
-																	</>
+													{/* Alerta de conclusão ou prorrogação */}
+													{and.conclusao && (
+														<div className='bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2'>
+															<CheckCircle2 className='h-4 w-4' />
+															<span>
+																<strong>CONCLUÍDO</strong> em{' '}
+																{new Date(and.conclusao).toLocaleDateString('pt-BR', {
+																	day: '2-digit',
+																	month: '2-digit',
+																	year: 'numeric',
+																})}
+															</span>
+														</div>
+													)}
+													{and.prorrogacao && !and.conclusao && (
+														<div className='bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2'>
+															<AlertCircle className='h-4 w-4' />
+															<span>
+																<strong>PRORROGADO</strong> - Nova data limite:{' '}
+																{new Date(and.prorrogacao).toLocaleDateString('pt-BR', {
+																	day: '2-digit',
+																	month: '2-digit',
+																	year: 'numeric',
+																})}
+																{and.usuarioProrrogacao && (
+																	<> por <strong>{and.usuarioProrrogacao.nomeSocial || and.usuarioProrrogacao.nome}</strong></>
 																)}
+															</span>
+														</div>
+													)}
+
+													<Separator />
+
+													{/* Informações do andamento */}
+													<div className='grid grid-cols-1 md:grid-cols-2 gap-4 text-sm'>
+														<div className='space-y-2'>
+															<div className='flex items-start gap-2'>
+																<span className='text-muted-foreground min-w-[60px]'>Origem:</span>
+																<span className='font-medium'>{and.origem}</span>
+															</div>
+															<div className='flex items-center gap-2'>
+																<ArrowRight className='h-4 w-4 text-muted-foreground ml-[60px]' />
+															</div>
+															<div className='flex items-start gap-2'>
+																<span className='text-muted-foreground min-w-[60px]'>Destino:</span>
+																<span className='font-medium'>{and.destino}</span>
 															</div>
 														</div>
-
-														{/* Observação */}
-														{and.observacao && (
-															<>
-																<Separator />
-																<div className='text-sm'>
-																	<div className='text-muted-foreground mb-1'>Observação:</div>
-																	<div className='bg-muted/50 p-3 rounded-md text-foreground'>
-																		{and.observacao}
+														<div className='space-y-2'>
+															<div className='flex items-start gap-2'>
+																<span className='text-muted-foreground min-w-[100px]'>Prazo Original:</span>
+																<span className='font-medium'>
+																	{new Date(and.prazo).toLocaleDateString('pt-BR', {
+																		day: '2-digit',
+																		month: '2-digit',
+																		year: 'numeric',
+																	})}
+																</span>
+															</div>
+															{and.prorrogacao && (
+																<>
+																	<div className='flex items-start gap-2'>
+																		<span className='text-muted-foreground min-w-[100px]'>Prazo Prorrogado:</span>
+																		<span className='font-medium text-orange-600 dark:text-orange-400'>
+																			{new Date(and.prorrogacao).toLocaleDateString('pt-BR', {
+																				day: '2-digit',
+																				month: '2-digit',
+																				year: 'numeric',
+																			})}
+																		</span>
 																	</div>
-																</div>
-															</>
-														)}
+																	{and.usuarioProrrogacao && (
+																		<div className='flex items-start gap-2'>
+																			<span className='text-muted-foreground min-w-[100px]'>Prorrogado por:</span>
+																			<span className='font-medium text-orange-600 dark:text-orange-400 flex items-center gap-1'>
+																				<User className='h-3 w-3' />
+																				{and.usuarioProrrogacao.nomeSocial || and.usuarioProrrogacao.nome}
+																			</span>
+																		</div>
+																	)}
+																</>
+															)}
+														</div>
 													</div>
 
-													{/* Botões de ação */}
-													<div className='flex-shrink-0 flex gap-2'>
-														<ModalEditAndamento
-															andamento={and}
-															onSuccess={refreshFn}
-														/>
-														{/* Botão de excluir - apenas para DEV, ADM e TEC */}
-														{session?.usuario?.permissao &&
-															(['DEV', 'ADM', 'TEC'].includes(session.usuario.permissao.toString())) && (
-																<ModalDeleteAndamento
-																	andamento={and}
-																	onSuccess={refreshFn}
-																/>
-															)}
-													</div>
+													{/* Observações */}
+													{and.observacao && (
+														<>
+															<Separator />
+															<div className='text-sm space-y-3'>
+																<div className='flex items-center gap-2'>
+																	<FileText className='h-4 w-4 text-muted-foreground' />
+																	<span className='text-muted-foreground font-medium'>Observações:</span>
+																</div>
+																<div className='space-y-3'>
+																	{and.observacao
+																		.split(/\n\s*---\s*\n/)
+																		.filter(obs => obs.trim().length > 0)
+																		.reverse()
+																		.map((obs, idx) => {
+																		const parsed = parsearObservacao(obs);
+																		// Calcula o índice original (antes do reverse)
+																		const totalObservacoes = and.observacao.split(/\n\s*---\s*\n/).filter(o => o.trim().length > 0).length;
+																		const indiceOriginal = totalObservacoes - 1 - idx;
+																		
+																		if (parsed) {
+																			return (
+																				<div key={idx} className='bg-muted/50 p-3 rounded-md space-y-2 border-l-2 border-l-blue-500'>
+																					<div className='flex items-center justify-between'>
+																						<div className='flex items-center gap-2 text-xs text-muted-foreground'>
+																							<User className='h-3 w-3' />
+																							<span className='font-medium text-foreground'>{parsed.autor}</span>
+																							<span>•</span>
+																							<Calendar className='h-3 w-3' />
+																							<span>{parsed.dataHora}</span>
+																						</div>
+																						<ModalEditObservacao
+																							processoId={processoId}
+																							andamentoId={and.id}
+																							observacaoOriginal={obs}
+																							indiceObservacao={indiceOriginal}
+																							onSuccess={refreshFn}
+																						/>
+																					</div>
+																					{parsed.texto && (
+																						<div className='text-foreground whitespace-pre-wrap pl-5'>
+																							{parsed.texto}
+																						</div>
+																					)}
+																				</div>
+																			);
+																		}
+																		// Fallback para formato antigo (sem formatação)
+																		return (
+																			<div key={idx} className='bg-muted/50 p-3 rounded-md border-l-2 border-l-blue-500'>
+																				<div className='flex items-center justify-between'>
+																					<div className='text-foreground whitespace-pre-wrap'>{obs.trim()}</div>
+																					<ModalEditObservacao
+																						processoId={processoId}
+																						andamentoId={and.id}
+																						observacaoOriginal={obs}
+																						indiceObservacao={indiceOriginal}
+																						onSuccess={refreshFn}
+																					/>
+																				</div>
+																			</div>
+																		);
+																	})}
+																</div>
+															</div>
+														</>
+													)}
 												</div>
-											</CardContent>
-										</Card>
-									</div>
+
+												{/* Botões de ação */}
+												<div className='flex-shrink-0 flex gap-2'>
+													<ModalAdicionarObservacao
+														processoId={processoId}
+														onSuccess={refreshFn}
+													/>
+													<ModalEditAndamento
+														andamento={and}
+														onSuccess={refreshFn}
+													/>
+													{/* Botão de excluir - apenas para DEV, ADM e TEC */}
+													{session?.usuario?.permissao &&
+														(['DEV', 'ADM', 'TEC'].includes(session.usuario.permissao.toString())) && (
+															<ModalDeleteAndamento
+																andamento={and}
+																onSuccess={refreshFn}
+															/>
+														)}
+												</div>
+											</div>
+										</CardContent>
+									</Card>
 								</div>
-							);
+							</div>
+						);
 						})}
 					</div>
 				</div>
