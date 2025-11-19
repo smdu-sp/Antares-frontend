@@ -79,16 +79,17 @@ export default function FiltroAtrasados() {
       variant={atrasados ? "default" : "outline"}
       onClick={toggleFiltro}
       disabled={isPending}
+      size="lg"
       className={cn(
-        "w-full md:w-auto relative",
-        atrasados && "bg-red-600 hover:bg-red-700 text-white"
+        "w-full sm:w-auto relative flex items-center gap-2 transition-all",
+        atrasados && "bg-red-600 hover:bg-red-700 text-white shadow-md"
       )}
     >
-      <AlertTriangle className="h-4 w-4 mr-2" />
-      Atrasados
+      <AlertTriangle className="h-4 w-4" />
+      <span className="font-medium">Atrasados</span>
       {contagem > 0 && (
-        <span className="ml-2 h-5 min-w-5 px-1.5 flex items-center justify-center text-xs font-bold bg-red-500 text-white rounded">
-          {contagem}
+        <span className="h-6 min-w-6 px-2 flex items-center justify-center text-xs font-bold bg-white text-red-600 rounded-full">
+          {contagem > 99 ? "99+" : contagem}
         </span>
       )}
     </Button>

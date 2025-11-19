@@ -1,0 +1,100 @@
+/** @format */
+
+import { auth } from "@/lib/auth/auth";
+import { redirect } from "next/navigation";
+import * as processo from "@/services/processos";
+import { IProcesso } from "@/types/processo";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { Card, CardContent } from "@/components/ui/card";
+import { ProcessoDetalhesHeader, AndamentosDetalhes } from "./_components";
+import { Suspense } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
+
+export default async function ProcessoDetalhesPageSuspense({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  return (
+    <Suspense fallback={<ProcessoDetalhesSkeleton />}>
+      <ProcessoDetalhesPage params={params} />
+    </Suspense>
+  );
+}
+
+async function ProcessoDetalhesPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const session = await auth();
+
+  if (!session?.access_token) {
+    redirect("/login");
+  }
+
+  const response = await processo.query.buscarPorId(session.access_token, id);
+
+  if (!response.ok || !response.data) {
+    return (
+      <div className="w-full px-0 md:px-8 pb-20 md:pb-14 h-full md:container mx-auto">
+        <div className="mb-6">
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Voltar para Processos
+            </Link>
+          </Button>
+        </div>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center text-destructive py-8">
+              <p className="text-lg font-semibold">Processo não encontrado</p>
+              <p className="text-sm mt-2 text-muted-foreground">
+                {response.error ||
+                  "Não foi possível carregar os dados do processo"}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const processoData = response.data as IProcesso;
+
+  return (
+    <div className="w-full px-0 md:px-8 pb-20 md:pb-14 h-full md:container mx-auto">
+      {/* Botão Voltar */}
+      <div className="mb-6">
+        <Button asChild variant="ghost" size="sm">
+          <Link href="/">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Voltar para Processos
+          </Link>
+        </Button>
+      </div>
+
+      {/* Cabeçalho do Processo */}
+      <ProcessoDetalhesHeader processo={processoData} />
+
+      {/* Andamentos */}
+      <div className="mt-6">
+        <AndamentosDetalhes processo={processoData} />
+      </div>
+    </div>
+  );
+}
+
+function ProcessoDetalhesSkeleton() {
+  return (
+    <div className="w-full px-0 md:px-8 pb-20 md:pb-14 h-full md:container mx-auto">
+      <Skeleton className="h-10 w-48 mb-6" />
+      <Skeleton className="h-48 w-full mb-6" />
+      <Skeleton className="h-96 w-full" />
+    </div>
+  );
+}
