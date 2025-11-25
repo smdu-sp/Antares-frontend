@@ -191,7 +191,7 @@ export default function FormEditAndamento({
 					/>
 				</div>
 
-				{/* Campo de Conclusão com Checkbox */}
+				{/* Campo de Resposta com Checkbox */}
 				<div className='flex items-center gap-2'>
 					<Checkbox
 						checked={temConclusao}
@@ -207,7 +207,7 @@ export default function FormEditAndamento({
 						name='conclusao'
 						render={({ field }) => (
 							<FormItem className='flex-1'>
-								<FormLabel>Data de Conclusão</FormLabel>
+								<FormLabel>Data da Resposta</FormLabel>
 								<FormControl>
 									<Input
 										type='date'

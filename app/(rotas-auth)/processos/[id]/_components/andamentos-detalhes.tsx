@@ -198,7 +198,7 @@ export default function AndamentosDetalhes({
                       <TableHead>Status</TableHead>
                       <TableHead>Origem → Destino</TableHead>
                       <TableHead>Prazo</TableHead>
-                      <TableHead>Conclusão</TableHead>
+                      <TableHead>Resposta</TableHead>
                       <TableHead>Responsável</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
