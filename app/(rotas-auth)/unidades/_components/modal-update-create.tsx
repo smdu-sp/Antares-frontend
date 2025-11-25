@@ -48,7 +48,7 @@ export default function ModalUpdateAndCreate({
 				<DialogHeader>
 					<DialogTitle>{isUpdating ? 'Editar ' : 'Criar '}Unidade</DialogTitle>
 					<DialogDescription>
-						Gerencie as informações da unidade selecionada
+						Gerencie as informações da unidade selecionada.
 					</DialogDescription>
 				</DialogHeader>
 				<FormUnidade
