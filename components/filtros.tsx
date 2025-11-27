@@ -69,6 +69,7 @@ interface FiltrosProps {
   showClearButton?: boolean;
   autoSearch?: boolean; // Nova prop para busca automática
   debounceMs?: number; // Tempo de espera antes de buscar
+  clearOtherFiltersOnSearch?: boolean; // Limpar outros filtros da URL ao fazer busca
 }
 
 export function Filtros({
@@ -77,6 +78,7 @@ export function Filtros({
   showClearButton = true,
   autoSearch = false,
   debounceMs = 500,
+  clearOtherFiltersOnSearch = false,
 }: FiltrosProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -143,9 +145,22 @@ export function Filtros({
 
   function atualizaFiltros() {
     let urlParams = "";
-    for (const [key, value] of Object.entries(filtros)) {
-      urlParams += `${key}=${value}&`;
+
+    if (clearOtherFiltersOnSearch) {
+      // Se clearOtherFiltersOnSearch estiver ativo, apenas adiciona os filtros gerenciados
+      for (const [key, value] of Object.entries(filtros)) {
+        if (value) {
+          // Só adiciona se tiver valor
+          urlParams += `${key}=${value}&`;
+        }
+      }
+    } else {
+      // Mantém comportamento original
+      for (const [key, value] of Object.entries(filtros)) {
+        urlParams += `${key}=${value}&`;
+      }
     }
+
     router.push(`${pathname}?${urlParams}`);
   }
 

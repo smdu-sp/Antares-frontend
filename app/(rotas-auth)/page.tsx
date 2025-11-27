@@ -147,6 +147,7 @@ async function Home({
           showClearButton={false}
           autoSearch={true}
           debounceMs={600}
+          clearOtherFiltersOnSearch={true}
         />
 
         {/* Filtros Rápidos com Botão Limpar */}

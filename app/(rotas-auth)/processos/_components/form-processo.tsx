@@ -21,7 +21,7 @@ import * as processo from '@/services/processos';
 import { useTransition } from 'react';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 const formSchema = z.object({
 	numero_sei: z.string().min(3, 'Número SEI deve ter ao menos 3 caracteres'),
@@ -39,6 +39,7 @@ export default function FormProcesso({
 }) {
 	const [isPending, startTransition] = useTransition();
 	const router = useRouter();
+	const pathname = usePathname();
 
 	const form = useForm<ICreateProcesso | IUpdateProcesso>({
 		resolver: zodResolver(formSchema),
@@ -66,6 +67,8 @@ export default function FormProcesso({
 						: 'Processo criado com sucesso',
 				);
 				form.reset();
+				// Limpa os filtros e busca da URL
+				router.push(pathname);
 				router.refresh();
 				onSuccess?.();
 			}
