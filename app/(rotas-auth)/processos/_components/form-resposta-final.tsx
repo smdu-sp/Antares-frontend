@@ -12,6 +12,7 @@ import {
   FormMessage,
   FormDescription,
 } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -19,19 +20,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { IProcesso } from "@/types/processo";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import * as processo from "@/services/processos";
-import { useTransition, useMemo } from "react";
+import { useTransition } from "react";
 import { toast } from "sonner";
 import { CalendarIcon, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -44,7 +38,6 @@ const formSchema = z.object({
     required_error: "Data de resposta final é obrigatória",
   }),
   resposta: z.string().min(10, "Resposta deve ter ao menos 10 caracteres"),
-  unidade_respondida_id: z.string().min(1, "Selecione uma unidade"),
 });
 
 export default function FormRespostaFinal({
@@ -62,34 +55,8 @@ export default function FormRespostaFinal({
     defaultValues: {
       data_resposta_final: new Date(), // Pré-preenchido com data atual
       resposta: "",
-      unidade_respondida_id: "",
     },
   });
-
-  // Extrair unidades únicas dos andamentos anteriores
-  const unidadesAndamentos = useMemo(() => {
-    if (!processoData.andamentos || processoData.andamentos.length === 0) {
-      return [];
-    }
-
-    const unidadesMap = new Map<string, string>();
-
-    processoData.andamentos.forEach((andamento) => {
-      // Adiciona origem
-      if (andamento.origem && !unidadesMap.has(andamento.origem)) {
-        unidadesMap.set(andamento.origem, andamento.origem);
-      }
-      // Adiciona destino
-      if (andamento.destino && !unidadesMap.has(andamento.destino)) {
-        unidadesMap.set(andamento.destino, andamento.destino);
-      }
-    });
-
-    return Array.from(unidadesMap.entries()).map(([id, nome]) => ({
-      id,
-      nome,
-    }));
-  }, [processoData.andamentos]);
 
   async function onSubmit(data: z.infer<typeof formSchema>) {
     startTransition(async () => {
@@ -98,7 +65,7 @@ export default function FormRespostaFinal({
         processo_id: processoData.id,
         data_resposta_final: data.data_resposta_final.toISOString(),
         resposta: data.resposta,
-        unidade_respondida_id: data.unidade_respondida_id,
+        unidade_respondida_id: processoData.origem || "", // Usa a origem do processo
       };
 
       const resp = await processo.server.criarRespostaFinal(dataFormatada);
@@ -114,14 +81,14 @@ export default function FormRespostaFinal({
     });
   }
 
-  if (unidadesAndamentos.length === 0) {
+  if (!processoData.origem) {
     return (
       <div className="text-center py-8 text-muted-foreground">
         <p className="text-base">
-          Não é possível criar resposta final sem andamentos cadastrados.
+          Não é possível criar resposta final sem unidade de origem cadastrada.
         </p>
         <p className="text-sm mt-2">
-          Crie pelo menos um andamento antes de registrar a resposta final.
+          A unidade de origem deve ser definida na criação do processo.
         </p>
       </div>
     );
@@ -176,33 +143,19 @@ export default function FormRespostaFinal({
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="unidade_respondida_id"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Unidade Respondida</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione a unidade" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {unidadesAndamentos.map((unidade) => (
-                    <SelectItem key={unidade.id} value={unidade.id}>
-                      {unidade.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormDescription>
-                Unidade que está sendo respondida
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <FormItem>
+          <FormLabel>Unidade Respondida</FormLabel>
+          <FormControl>
+            <Input
+              value={processoData.origem || ""}
+              disabled
+              className="bg-muted cursor-not-allowed"
+            />
+          </FormControl>
+          <FormDescription>
+            Unidade de origem do processo (não editável)
+          </FormDescription>
+        </FormItem>
 
         <FormField
           control={form.control}

@@ -44,6 +44,7 @@ export interface IProcesso {
   id: string;
   numero_sei: string;
   assunto: string;
+  origem?: string;
   data_recebimento?: Date;
   criadoEm: Date;
   atualizadoEm: Date;
@@ -53,12 +54,14 @@ export interface IProcesso {
 export interface ICreateProcesso {
   numero_sei: string;
   assunto: string;
+  origem: string;
   data_recebimento: string;
 }
 
 export interface IUpdateProcesso {
   numero_sei?: string;
   assunto?: string;
+  origem?: string;
   data_recebimento?: string;
 }
 

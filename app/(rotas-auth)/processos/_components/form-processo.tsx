@@ -36,6 +36,7 @@ import { cn } from "@/lib/utils";
 const formSchema = z.object({
   numero_sei: z.string().min(3, "Número SEI deve ter ao menos 3 caracteres"),
   assunto: z.string().min(5, "Assunto deve ter ao menos 5 caracteres"),
+  origem: z.string().min(2, "Unidade de origem deve ter ao menos 2 caracteres"),
   data_recebimento: z.date({
     required_error: "Data de recebimento é obrigatória",
   }),
@@ -59,6 +60,7 @@ export default function FormProcesso({
     defaultValues: {
       numero_sei: processoData?.numero_sei || "",
       assunto: processoData?.assunto || "",
+      origem: processoData?.origem || "",
       data_recebimento: processoData?.data_recebimento
         ? new Date(processoData.data_recebimento)
         : undefined,
@@ -125,6 +127,20 @@ export default function FormProcesso({
                   {...field}
                 />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="origem"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Unidade de Origem</FormLabel>
+              <FormControl>
+                <Input placeholder="EXPEDIENTE" {...field} />
+              </FormControl>
+              <FormDescription>Unidade que originou o processo</FormDescription>
               <FormMessage />
             </FormItem>
           )}

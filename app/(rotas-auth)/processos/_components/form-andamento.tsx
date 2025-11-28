@@ -37,7 +37,6 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
 const formSchema = z.object({
-  origem: z.string().min(2, "Origem deve ter ao menos 2 caracteres"),
   destinos: z
     .array(z.string())
     .min(1, "Selecione ao menos uma unidade de destino"),
@@ -49,9 +48,11 @@ const formSchema = z.object({
 
 export default function FormAndamento({
   processoId,
+  processoOrigem,
   onSuccess,
 }: {
   processoId: string;
+  processoOrigem: string;
   onSuccess?: () => void;
 }) {
   const [isPending, startTransition] = useTransition();
@@ -63,7 +64,6 @@ export default function FormAndamento({
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      origem: "",
       destinos: [],
       data_envio: new Date(), // Pré-preenchido com data atual
       prazo: "",
@@ -98,7 +98,7 @@ export default function FormAndamento({
         const unidadeDestino = unidades.find((u) => u.id === destinoId);
         return andamento.server.criar({
           processo_id: processoId,
-          origem: data.origem,
+          origem: processoOrigem,
           destino: unidadeDestino?.sigla || destinoId,
           data_envio: dataEnvioISO,
           prazo: prazoISO,
@@ -136,19 +136,6 @@ export default function FormAndamento({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="origem"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Unidade de Origem</FormLabel>
-              <FormControl>
-                <Input placeholder="EXPEDIENTE" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
         <FormField
           control={form.control}
           name="destinos"

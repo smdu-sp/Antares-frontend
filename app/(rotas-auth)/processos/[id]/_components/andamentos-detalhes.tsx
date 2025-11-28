@@ -122,6 +122,7 @@ export default function AndamentosDetalhes({
         <div className="flex gap-2">
           <ModalAndamento
             processoId={processo.id}
+            processoOrigem={processo.origem || ""}
             onSuccess={refreshFn}
             size="lg"
             variant="default"

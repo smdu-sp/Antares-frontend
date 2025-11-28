@@ -17,12 +17,14 @@ import { useState } from "react";
 
 export default function ModalAndamento({
   processoId,
+  processoOrigem,
   onSuccess,
   variant = "default",
   size = "sm",
   showText = true,
 }: {
   processoId: string;
+  processoOrigem: string;
   onSuccess?: () => void;
   variant?: "default" | "outline";
   size?: "sm" | "lg";
@@ -50,7 +52,11 @@ export default function ModalAndamento({
             Registre o envio do processo para uma unidade
           </DialogDescription>
         </DialogHeader>
-        <FormAndamento processoId={processoId} onSuccess={handleSuccess} />
+        <FormAndamento
+          processoId={processoId}
+          processoOrigem={processoOrigem}
+          onSuccess={handleSuccess}
+        />
       </DialogContent>
     </Dialog>
   );
