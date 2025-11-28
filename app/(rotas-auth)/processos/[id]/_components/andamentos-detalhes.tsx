@@ -555,43 +555,73 @@ function ObservacoesSection({
     .reverse();
 
   return (
-    <div className="space-y-3 mt-4">
-      {/* Header com mais destaque */}
-      <div className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-950/30 border-l-4 border-blue-500 rounded-lg">
-        <div className="p-2 bg-blue-500 rounded-md">
-          <FileText className="h-5 w-5 text-white" />
+    <Card className="mt-4">
+      <CardHeader>
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-blue-500 rounded-md">
+            <FileText className="h-5 w-5 text-white" />
+          </div>
+          <CardTitle className="text-lg font-bold">Observações</CardTitle>
         </div>
-        <h3 className="text-base font-semibold text-blue-900 dark:text-blue-100">
-          Observações
-        </h3>
-      </div>
+      </CardHeader>
 
-      {/* Lista de observações com mais espaço */}
-      <div className="space-y-3 pl-2">
-        {observacoes.map((obs, idx) => {
-          const parsed = parsearObservacao(obs);
-          const totalObservacoes = observacoes.length;
-          const indiceOriginal = totalObservacoes - 1 - idx;
+      <CardContent className="pt-6">
+        {/* Lista de observações */}
+        <div className="space-y-4">
+          {observacoes.map((obs, idx) => {
+            const parsed = parsearObservacao(obs);
+            const totalObservacoes = observacoes.length;
+            const indiceOriginal = totalObservacoes - 1 - idx;
 
-          if (parsed) {
+            if (parsed) {
+              return (
+                <div
+                  key={idx}
+                  className="bg-muted/20 p-4 rounded-lg space-y-3 border border-border hover:border-muted-foreground/50 transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4" />
+                        <span className="font-semibold text-foreground">
+                          {parsed.autor}
+                        </span>
+                      </div>
+                      <span>•</span>
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="h-4 w-4" />
+                        <span>{parsed.dataHora}</span>
+                      </div>
+                    </div>
+                    <ModalEditObservacao
+                      processoId={processoId}
+                      andamentoId={andamentoId}
+                      observacaoOriginal={obs}
+                      indiceObservacao={indiceOriginal}
+                      onSuccess={onRefresh}
+                    />
+                  </div>
+                  {parsed.texto && (
+                    <div className="bg-muted/30 p-4 rounded-md">
+                      <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                        {parsed.texto}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
             return (
               <div
                 key={idx}
-                className="bg-background p-4 rounded-lg space-y-3 border-2 border-muted hover:border-blue-300 dark:hover:border-blue-700 transition-colors shadow-sm"
+                className="bg-muted/20 p-4 rounded-lg border border-border hover:border-muted-foreground/50 transition-colors"
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4" />
-                      <span className="font-semibold text-foreground">
-                        {parsed.autor}
-                      </span>
-                    </div>
-                    <span>•</span>
-                    <div className="flex items-center gap-1.5">
-                      <Calendar className="h-4 w-4" />
-                      <span>{parsed.dataHora}</span>
-                    </div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="bg-muted/30 p-4 rounded-md flex-1">
+                    <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                      {obs.trim()}
+                    </p>
                   </div>
                   <ModalEditObservacao
                     processoId={processoId}
@@ -601,40 +631,11 @@ function ObservacoesSection({
                     onSuccess={onRefresh}
                   />
                 </div>
-                {parsed.texto && (
-                  <div className="bg-muted/30 p-4 rounded-md border-l-4 border-blue-500">
-                    <p className="text-base text-foreground leading-relaxed whitespace-pre-wrap">
-                      {parsed.texto}
-                    </p>
-                  </div>
-                )}
               </div>
             );
-          }
-
-          return (
-            <div
-              key={idx}
-              className="bg-background p-4 rounded-lg border-2 border-muted hover:border-blue-300 dark:hover:border-blue-700 transition-colors shadow-sm"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <div className="bg-muted/30 p-4 rounded-md border-l-4 border-blue-500 flex-1">
-                  <p className="text-base text-foreground leading-relaxed whitespace-pre-wrap">
-                    {obs.trim()}
-                  </p>
-                </div>
-                <ModalEditObservacao
-                  processoId={processoId}
-                  andamentoId={andamentoId}
-                  observacaoOriginal={obs}
-                  indiceObservacao={indiceOriginal}
-                  onSuccess={onRefresh}
-                />
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
+          })}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

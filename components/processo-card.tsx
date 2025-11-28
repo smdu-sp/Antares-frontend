@@ -21,6 +21,7 @@ import {
   calcularDiasRestantes,
   getStatusPrazo,
 } from "@/app/(rotas-auth)/processos/_components/utils";
+import { StatusAndamento } from "@/types/processo";
 import ModalProcesso from "@/app/(rotas-auth)/processos/_components/modal-processo";
 import ModalDeleteProcesso from "@/app/(rotas-auth)/processos/_components/modal-delete-processo";
 import Link from "next/link";
@@ -40,17 +41,30 @@ export default function ProcessoCard({ processo }: { processo: IProcesso }) {
 
   const Icone = statusPrazo?.icone;
 
+  // Função para determinar a cor da borda baseada no status
+  const getBorderColor = () => {
+    if (!ultimoAndamento) return "border-l-gray-400";
+
+    // Se concluído, sempre verde
+    if (ultimoAndamento.status === StatusAndamento.CONCLUIDO) {
+      return "border-l-green-500";
+    }
+
+    // Se em andamento, verifica o prazo
+    if (diasRestantes !== null) {
+      if (diasRestantes < 0) return "border-l-red-500"; // Atrasado
+      if (diasRestantes === 0) return "border-l-orange-500"; // Vencendo hoje
+      if (diasRestantes <= 7) return "border-l-yellow-500"; // Em andamento (próximo do prazo)
+    }
+
+    return "border-l-yellow-500"; // Em andamento (padrão)
+  };
+
   return (
     <Card
       className={cn(
         "hover:shadow-lg transition-all duration-200 border-l-4",
-        ultimoAndamento && diasRestantes !== null && diasRestantes < 0
-          ? "border-l-red-500"
-          : ultimoAndamento && diasRestantes !== null && diasRestantes <= 3
-          ? "border-l-orange-500"
-          : ultimoAndamento && diasRestantes !== null && diasRestantes <= 7
-          ? "border-l-yellow-500"
-          : "border-l-green-500"
+        getBorderColor()
       )}
     >
       <CardHeader className="pb-3">
