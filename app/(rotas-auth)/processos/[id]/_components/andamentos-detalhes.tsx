@@ -91,9 +91,13 @@ export default function AndamentosDetalhes({
     (a, b) => new Date(b.criadoEm).getTime() - new Date(a.criadoEm).getTime()
   );
 
-  // Separa andamento atual (o mais recente) dos históricos (todos os anteriores)
-  const andamentoAtual = andamentosOrdenados[0]; // O primeiro (mais recente)
-  const andamentosHistorico = andamentosOrdenados.slice(1); // Todos os outros
+  // Separa andamentos em andamento (status EM_ANDAMENTO) dos históricos (outros status)
+  const andamentosEmAndamento = andamentosOrdenados.filter(
+    (a) => a.status === StatusAndamento.EM_ANDAMENTO
+  );
+  const andamentosHistorico = andamentosOrdenados.filter(
+    (a) => a.status !== StatusAndamento.EM_ANDAMENTO
+  );
 
   if (loading) {
     return (
@@ -122,44 +126,55 @@ export default function AndamentosDetalhes({
         />
       </div>
 
-      {/* Andamento Atual */}
-      {andamentoAtual && (
-        <Card className="border-l-4 border-l-blue-500">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <CardTitle className="text-xl">Andamento Atual</CardTitle>
-                <CardDescription>Processo em tramitação</CardDescription>
-              </div>
-              <div className="flex gap-2">
-                <ModalAdicionarObservacao
-                  processoId={processo.id}
-                  onSuccess={refreshFn}
-                />
-                <ModalEditAndamento
-                  andamento={andamentoAtual}
-                  onSuccess={refreshFn}
-                />
-                {session?.usuario?.permissao &&
-                  ["DEV", "ADM", "TEC"].includes(
-                    session.usuario.permissao.toString()
-                  ) && (
-                    <ModalDeleteAndamento
-                      andamento={andamentoAtual}
+      {/* Andamentos em Andamento */}
+      {andamentosEmAndamento.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold">
+            {andamentosEmAndamento.length === 1 
+              ? "Andamento Atual" 
+              : `Andamentos em Andamento (${andamentosEmAndamento.length})`}
+          </h3>
+          {andamentosEmAndamento.map((andamento) => (
+            <Card key={andamento.id} className="border-l-4 border-l-blue-500">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <CardTitle className="text-xl">
+                      {andamento.origem} → {andamento.destino}
+                    </CardTitle>
+                    <CardDescription>Processo em tramitação</CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    <ModalAdicionarObservacao
+                      processoId={processo.id}
                       onSuccess={refreshFn}
                     />
-                  )}
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <AndamentoCard
-              andamento={andamentoAtual}
-              processoId={processo.id}
-              onRefresh={refreshFn}
-            />
-          </CardContent>
-        </Card>
+                    <ModalEditAndamento
+                      andamento={andamento}
+                      onSuccess={refreshFn}
+                    />
+                    {session?.usuario?.permissao &&
+                      ["DEV", "ADM", "TEC"].includes(
+                        session.usuario.permissao.toString()
+                      ) && (
+                        <ModalDeleteAndamento
+                          andamento={andamento}
+                          onSuccess={refreshFn}
+                        />
+                      )}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <AndamentoCard
+                  andamento={andamento}
+                  processoId={processo.id}
+                  onRefresh={refreshFn}
+                />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       )}
 
       {/* Histórico de Andamentos - Collapsible */}
@@ -221,7 +236,7 @@ export default function AndamentosDetalhes({
       )}
 
       {/* Mensagem quando não há andamentos */}
-      {!andamentoAtual && andamentosHistorico.length === 0 && (
+      {andamentosEmAndamento.length === 0 && andamentosHistorico.length === 0 && (
         <Card>
           <CardContent className="pt-6">
             <div className="text-center text-muted-foreground py-8">
