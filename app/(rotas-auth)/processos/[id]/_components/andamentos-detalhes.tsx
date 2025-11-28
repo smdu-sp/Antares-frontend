@@ -30,6 +30,7 @@ import {
   getStatusPrazo,
 } from "@/app/(rotas-auth)/processos/_components/utils";
 import ModalAndamento from "@/app/(rotas-auth)/processos/_components/modal-andamento";
+import ModalRespostaFinal from "@/app/(rotas-auth)/processos/_components/modal-resposta-final";
 import ModalEditAndamento from "@/app/(rotas-auth)/processos/_components/modal-edit-andamento";
 import ModalDeleteAndamento from "@/app/(rotas-auth)/processos/_components/modal-delete-andamento";
 import ModalAdicionarObservacao from "@/app/(rotas-auth)/processos/_components/modal-adicionar-observacao";
@@ -110,7 +111,7 @@ export default function AndamentosDetalhes({
 
   return (
     <div className="space-y-6">
-      {/* Header com Botão de Criar Andamento */}
+      {/* Header com Botões de Criar Andamento e Resposta Final */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b">
         <div>
           <h2 className="text-2xl font-bold">Andamentos</h2>
@@ -118,20 +119,28 @@ export default function AndamentosDetalhes({
             Acompanhe a tramitação do processo
           </p>
         </div>
-        <ModalAndamento
-          processoId={processo.id}
-          onSuccess={refreshFn}
-          size="lg"
-          variant="default"
-        />
+        <div className="flex gap-2">
+          <ModalAndamento
+            processoId={processo.id}
+            onSuccess={refreshFn}
+            size="lg"
+            variant="default"
+          />
+          <ModalRespostaFinal
+            processo={processo}
+            onSuccess={refreshFn}
+            size="lg"
+            variant="outline"
+          />
+        </div>
       </div>
 
       {/* Andamentos em Andamento */}
       {andamentosEmAndamento.length > 0 && (
         <div className="space-y-4">
           <h3 className="text-lg font-semibold">
-            {andamentosEmAndamento.length === 1 
-              ? "Andamento Atual" 
+            {andamentosEmAndamento.length === 1
+              ? "Andamento Atual"
               : `Andamentos em Andamento (${andamentosEmAndamento.length})`}
           </h3>
           {andamentosEmAndamento.map((andamento) => (
@@ -236,21 +245,22 @@ export default function AndamentosDetalhes({
       )}
 
       {/* Mensagem quando não há andamentos */}
-      {andamentosEmAndamento.length === 0 && andamentosHistorico.length === 0 && (
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center text-muted-foreground py-8">
-              <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p className="text-base">
-                Nenhum andamento cadastrado para este processo.
-              </p>
-              <p className="text-sm mt-2">
-                Clique no botão acima para adicionar o primeiro andamento.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {andamentosEmAndamento.length === 0 &&
+        andamentosHistorico.length === 0 && (
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center text-muted-foreground py-8">
+                <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p className="text-base">
+                  Nenhum andamento cadastrado para este processo.
+                </p>
+                <p className="text-sm mt-2">
+                  Clique no botão acima para adicionar o primeiro andamento.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
     </div>
   );
 }
