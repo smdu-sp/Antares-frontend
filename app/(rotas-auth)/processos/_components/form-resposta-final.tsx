@@ -25,6 +25,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import * as processo from "@/services/processos";
+import * as andamentoService from "@/services/andamentos";
+import { StatusAndamento } from "@/types/processo";
 import { useTransition } from "react";
 import { toast } from "sonner";
 import { CalendarIcon, Loader2 } from "lucide-react";
@@ -60,11 +62,12 @@ export default function FormRespostaFinal({
 
   async function onSubmit(data: z.infer<typeof formSchema>) {
     startTransition(async () => {
+      // Enviando resposta final (sem logs de depuração)
       // Converte a data para ISO string
       const dataFormatada = {
         processo_id: processoData.id,
         data_resposta_final: data.data_resposta_final.toISOString(),
-        resposta: data.resposta,
+        resposta_final: data.resposta,
         unidade_respondida_id: processoData.origem || "", // Usa a origem do processo
       };
 
@@ -73,7 +76,41 @@ export default function FormRespostaFinal({
       if (!resp.ok) {
         toast.error("Erro", { description: resp.error });
       } else {
-        toast.success("Resposta final registrada com sucesso");
+        // Cria um andamento representando a resposta final e marca como CONCLUIDO
+        try {
+          const andamentoPayload = {
+            processo_id: processoData.id,
+            origem: processoData.origem || "",
+            destino: processoData.origem || "",
+            data_envio: data.data_resposta_final.toISOString(),
+            prazo: data.data_resposta_final.toISOString(),
+            status: StatusAndamento.CONCLUIDO,
+            observacao: data.resposta,
+          };
+
+          const andamentoResp = await andamentoService.server.criar(
+            andamentoPayload as any
+          );
+
+          if (!andamentoResp.ok) {
+            toast.warning(
+              "Resposta criada, mas não foi possível criar o andamento.",
+              {
+                description: andamentoResp.error,
+              }
+            );
+          } else {
+            toast.success(
+              "Resposta final registrada e andamento criado com sucesso"
+            );
+          }
+        } catch (err) {
+          console.error("Erro ao criar andamento automático:", err);
+          toast.warning(
+            "Resposta criada, mas erro ao criar andamento automático"
+          );
+        }
+
         form.reset();
         router.refresh();
         onSuccess?.();

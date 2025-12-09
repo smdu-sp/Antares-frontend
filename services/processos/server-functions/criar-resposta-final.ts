@@ -10,7 +10,7 @@ import { revalidateTag } from "next/cache";
 export interface ICreateRespostaFinal {
   processo_id: string;
   data_resposta_final: string;
-  resposta: string;
+  resposta_final: string;
   unidade_respondida_id: string;
 }
 

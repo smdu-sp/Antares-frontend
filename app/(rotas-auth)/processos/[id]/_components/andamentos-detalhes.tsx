@@ -35,6 +35,8 @@ import ModalEditAndamento from "@/app/(rotas-auth)/processos/_components/modal-e
 import ModalDeleteAndamento from "@/app/(rotas-auth)/processos/_components/modal-delete-andamento";
 import ModalAdicionarObservacao from "@/app/(rotas-auth)/processos/_components/modal-adicionar-observacao";
 import ModalEditObservacao from "@/app/(rotas-auth)/processos/_components/modal-edit-observacao";
+import ModalProrrogarAndamento from "@/app/(rotas-auth)/processos/_components/modal-prorrogar-andamento";
+import ModalResponderAndamento from "@/app/(rotas-auth)/processos/_components/modal-responder-andamento";
 import {
   Table,
   TableBody,
@@ -92,12 +94,15 @@ export default function AndamentosDetalhes({
     (a, b) => new Date(b.criadoEm).getTime() - new Date(a.criadoEm).getTime()
   );
 
-  // Separa andamentos em andamento (status EM_ANDAMENTO) dos históricos (outros status)
-  const andamentosEmAndamento = andamentosOrdenados.filter(
-    (a) => a.status === StatusAndamento.EM_ANDAMENTO
-  );
+  // (Removed temporary global event listeners and debug logs)
+
+  // Separa andamentos em ativos (tudo exceto CONCLUIDO) e histórico (apenas CONCLUIDO)
+  // Observação: PRORROGADO deve permanecer entre os andamentos ativos
   const andamentosHistorico = andamentosOrdenados.filter(
-    (a) => a.status !== StatusAndamento.EM_ANDAMENTO
+    (a) => a.status === StatusAndamento.CONCLUIDO
+  );
+  const andamentosEmAndamento = andamentosOrdenados.filter(
+    (a) => a.status !== StatusAndamento.CONCLUIDO
   );
 
   if (loading) {
@@ -156,6 +161,15 @@ export default function AndamentosDetalhes({
                   </div>
                   <div className="flex gap-2">
                     <ModalAdicionarObservacao
+                      processoId={processo.id}
+                      onSuccess={refreshFn}
+                    />
+                    <ModalProrrogarAndamento
+                      andamento={andamento}
+                      onSuccess={refreshFn}
+                    />
+                    <ModalResponderAndamento
+                      andamento={andamento}
                       processoId={processo.id}
                       onSuccess={refreshFn}
                     />
@@ -581,30 +595,55 @@ function ObservacoesSection({
                   className="bg-muted/20 p-4 rounded-lg space-y-3 border border-border hover:border-muted-foreground/50 transition-colors"
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4" />
-                        <span className="font-semibold text-foreground">
-                          {parsed.autor}
-                        </span>
-                      </div>
-                      <span>•</span>
-                      <div className="flex items-center gap-1.5">
-                        <Calendar className="h-4 w-4" />
-                        <span>{parsed.dataHora}</span>
-                      </div>
-                    </div>
-                    <ModalEditObservacao
-                      processoId={processoId}
-                      andamentoId={andamentoId}
-                      observacaoOriginal={obs}
-                      indiceObservacao={indiceOriginal}
-                      onSuccess={onRefresh}
-                    />
+                    {/** Destacar respostas (autor contendo 'resposta') */}
+                    {(() => {
+                      const isResposta =
+                        parsed.autor &&
+                        parsed.autor.toLowerCase().includes("resposta");
+                      const authorClass = isResposta
+                        ? "flex items-center gap-3 text-sm font-semibold text-green-700 dark:text-green-400"
+                        : "flex items-center gap-3 text-sm text-muted-foreground";
+                      return (
+                        <>
+                          <div className={authorClass}>
+                            <div className="flex items-center gap-2">
+                              <User className="h-4 w-4" />
+                              <span>{parsed.autor}</span>
+                            </div>
+                            <span>•</span>
+                            <div className="flex items-center gap-1.5">
+                              <Calendar className="h-4 w-4" />
+                              <span>{parsed.dataHora}</span>
+                            </div>
+                          </div>
+                          <ModalEditObservacao
+                            processoId={processoId}
+                            andamentoId={andamentoId}
+                            observacaoOriginal={obs}
+                            indiceObservacao={indiceOriginal}
+                            onSuccess={onRefresh}
+                          />
+                        </>
+                      );
+                    })()}
                   </div>
                   {parsed.texto && (
-                    <div className="bg-muted/30 p-4 rounded-md">
-                      <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                    <div
+                      className={
+                        parsed.autor &&
+                        parsed.autor.toLowerCase().includes("resposta")
+                          ? "bg-green-50 dark:bg-green-900/20 p-4 rounded-md"
+                          : "bg-muted/30 p-4 rounded-md"
+                      }
+                    >
+                      <p
+                        className={
+                          parsed.autor &&
+                          parsed.autor.toLowerCase().includes("resposta")
+                            ? "text-sm text-green-700 dark:text-green-400 leading-relaxed whitespace-pre-wrap"
+                            : "text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap"
+                        }
+                      >
                         {parsed.texto}
                       </p>
                     </div>
