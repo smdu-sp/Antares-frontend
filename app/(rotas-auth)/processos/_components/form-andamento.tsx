@@ -28,6 +28,7 @@ import * as unidade from "@/services/unidades";
 import { useTransition, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { CalendarIcon, Loader2 } from "lucide-react";
+import DateInput from "@/components/ui/date-input";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { MultiSelect } from "@/components/multi-select";
@@ -177,38 +178,19 @@ export default function FormAndamento({
           render={({ field }) => (
             <FormItem className="flex flex-col">
               <FormLabel>Data de Envio</FormLabel>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <FormControl>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full pl-3 text-left font-normal",
-                        !field.value && "text-muted-foreground"
-                      )}
-                    >
-                      {field.value ? (
-                        format(field.value, "PPP", { locale: ptBR })
-                      ) : (
-                        <span>Selecione a data</span>
-                      )}
-                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                    </Button>
-                  </FormControl>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={field.value}
-                    onSelect={field.onChange}
-                    disabled={(date) =>
-                      date > new Date() || date < new Date("1900-01-01")
-                    }
-                    initialFocus
-                    locale={ptBR}
-                  />
-                </PopoverContent>
-              </Popover>
+              <FormControl>
+                <DateInput
+                  value={field.value ?? null}
+                  onChange={(d) => field.onChange(d ?? new Date())}
+                  placeholder="DD/MM/AAAA"
+                  calendarProps={{
+                    locale: ptBR,
+                    initialFocus: true,
+                    disabled: (date: Date) =>
+                      date > new Date() || date < new Date("1900-01-01"),
+                  }}
+                />
+              </FormControl>
               <FormDescription>
                 Data em que o gabinete enviou o processo para a unidade
               </FormDescription>
@@ -223,7 +205,20 @@ export default function FormAndamento({
             <FormItem>
               <FormLabel>Prazo (Data Limite)</FormLabel>
               <FormControl>
-                <Input type="date" {...field} />
+                <DateInput
+                  value={
+                    field.value ? new Date(field.value + "T00:00:00") : null
+                  }
+                  onChange={(d) => {
+                    if (d) {
+                      const y = d.getFullYear();
+                      const m = String(d.getMonth() + 1).padStart(2, "0");
+                      const day = String(d.getDate()).padStart(2, "0");
+                      field.onChange(`${y}-${m}-${day}`);
+                    }
+                  }}
+                  placeholder="DD/MM/AAAA"
+                />
               </FormControl>
               <FormMessage />
             </FormItem>

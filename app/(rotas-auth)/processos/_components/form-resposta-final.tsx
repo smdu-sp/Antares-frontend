@@ -30,6 +30,7 @@ import { StatusAndamento } from "@/types/processo";
 import { useTransition } from "react";
 import { toast } from "sonner";
 import { CalendarIcon, Loader2 } from "lucide-react";
+import DateInput from "@/components/ui/date-input";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -140,38 +141,19 @@ export default function FormRespostaFinal({
           render={({ field }) => (
             <FormItem className="flex flex-col">
               <FormLabel>Data de Resposta Final</FormLabel>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <FormControl>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full pl-3 text-left font-normal",
-                        !field.value && "text-muted-foreground"
-                      )}
-                    >
-                      {field.value ? (
-                        format(field.value, "PPP", { locale: ptBR })
-                      ) : (
-                        <span>Selecione a data</span>
-                      )}
-                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                    </Button>
-                  </FormControl>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={field.value}
-                    onSelect={field.onChange}
-                    disabled={(date) =>
-                      date > new Date() || date < new Date("1900-01-01")
-                    }
-                    initialFocus
-                    locale={ptBR}
-                  />
-                </PopoverContent>
-              </Popover>
+              <FormControl>
+                <DateInput
+                  value={field.value ?? null}
+                  onChange={(d) => field.onChange(d ?? new Date())}
+                  placeholder="DD/MM/AAAA"
+                  calendarProps={{
+                    locale: ptBR,
+                    initialFocus: true,
+                    disabled: (date: Date) =>
+                      date > new Date() || date < new Date("1900-01-01"),
+                  }}
+                />
+              </FormControl>
               <FormDescription>
                 Data em que o gabinete respondeu o processo ao solicitante
               </FormDescription>

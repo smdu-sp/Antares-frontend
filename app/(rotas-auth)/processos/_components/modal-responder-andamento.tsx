@@ -26,6 +26,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import DateInput from "@/components/ui/date-input";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -139,33 +140,14 @@ export default function ModalResponderAndamento({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Data da Resposta</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full text-left pl-3",
-                            !field.value && "text-muted-foreground"
-                          )}
-                        >
-                          {field.value ? (
-                            format(field.value, "PPP", { locale: ptBR })
-                          ) : (
-                            <span>Selecione a data</span>
-                          )}
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={field.value}
-                        onSelect={field.onChange}
-                        locale={ptBR}
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <FormControl>
+                    <DateInput
+                      value={field.value ?? null}
+                      onChange={(d) => field.onChange(d ?? new Date())}
+                      placeholder="DD/MM/AAAA"
+                      calendarProps={{ locale: ptBR }}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

@@ -12,6 +12,9 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import DateInput from "@/components/ui/date-input";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 import {
   IAndamento,
   IUpdateAndamento,
@@ -152,7 +155,20 @@ export default function FormEditAndamento({
             <FormItem>
               <FormLabel>Prazo (Data Limite)</FormLabel>
               <FormControl>
-                <Input type="date" {...field} />
+                <DateInput
+                  value={
+                    field.value ? new Date(field.value + "T00:00:00") : null
+                  }
+                  onChange={(d) => {
+                    if (d) {
+                      const y = d.getFullYear();
+                      const m = String(d.getMonth() + 1).padStart(2, "0");
+                      const day = String(d.getDate()).padStart(2, "0");
+                      field.onChange(`${y}-${m}-${day}`);
+                    }
+                  }}
+                  placeholder="DD/MM/AAAA"
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -176,10 +192,19 @@ export default function FormEditAndamento({
               <FormItem className="flex-1">
                 <FormLabel>Prorrogação</FormLabel>
                 <FormControl>
-                  <Input
-                    type="date"
-                    {...field}
-                    value={field.value || ""}
+                  <DateInput
+                    value={
+                      field.value ? new Date(field.value + "T00:00:00") : null
+                    }
+                    onChange={(d) => {
+                      if (d) {
+                        const y = d.getFullYear();
+                        const m = String(d.getMonth() + 1).padStart(2, "0");
+                        const day = String(d.getDate()).padStart(2, "0");
+                        field.onChange(`${y}-${m}-${day}`);
+                      }
+                    }}
+                    placeholder="DD/MM/AAAA"
                     disabled={!temProrrogacao}
                   />
                 </FormControl>
@@ -207,10 +232,19 @@ export default function FormEditAndamento({
               <FormItem className="flex-1">
                 <FormLabel>Data da Resposta</FormLabel>
                 <FormControl>
-                  <Input
-                    type="date"
-                    {...field}
-                    value={field.value || ""}
+                  <DateInput
+                    value={
+                      field.value ? new Date(field.value + "T00:00:00") : null
+                    }
+                    onChange={(d) => {
+                      if (d) {
+                        const y = d.getFullYear();
+                        const m = String(d.getMonth() + 1).padStart(2, "0");
+                        const day = String(d.getDate()).padStart(2, "0");
+                        field.onChange(`${y}-${m}-${day}`);
+                      }
+                    }}
+                    placeholder="DD/MM/AAAA"
                     disabled={!temConclusao}
                   />
                 </FormControl>

@@ -22,9 +22,9 @@ import {
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import React, { useEffect, useState, useTransition } from "react";
-import { DateRange } from "react-day-picker";
+// Use simple { from?: Date | null; to?: Date | null } instead of react-day-picker types
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
-import { Calendar } from "./ui/calendar";
+import { DatePickerWithRange } from "./ui/date-range";
 import { format } from "date-fns";
 import { cn, verificaData } from "@/lib/utils";
 import { ptBR } from "date-fns/locale";
@@ -177,26 +177,26 @@ export function Filtros({
   }
 
   function renderFiltros() {
-    const filtros = [];
+    const filtrosArr: any[] = [];
     if (camposFiltraveis) {
       for (const campo of camposFiltraveis) {
         switch (campo.tipo) {
           case TiposFiltros.TEXTO:
-            filtros.push(RenderTexto(campo));
+            filtrosArr.push(RenderTexto(campo));
             break;
           case TiposFiltros.DATA:
-            filtros.push(RenderDataRange(campo));
+            filtrosArr.push(RenderDataRange(campo));
             break;
           case TiposFiltros.SELECT:
-            filtros.push(RenderSelect(campo));
+            filtrosArr.push(RenderSelect(campo));
             break;
           case TiposFiltros.AUTOCOMPLETE:
-            filtros.push(RenderAutocomplete(campo));
+            filtrosArr.push(RenderAutocomplete(campo));
             break;
         }
       }
     }
-    return filtros;
+    return filtrosArr;
   }
 
   function RenderTexto(campo: CampoFiltravel) {
@@ -317,11 +317,13 @@ export function Filtros({
     const datas = param ? param.split(",") : ["", ""];
 
     const [from, to] = verificaData(datas[0], datas[1]);
-    const [date, setDate] = useState<DateRange | undefined>(
-      datas[0] !== "" && datas[1] !== "" ? { from, to } : undefined
-    );
+    const [date, setDate] = useState<
+      { from?: Date | null; to?: Date | null } | undefined
+    >(datas[0] !== "" && datas[1] !== "" ? { from, to } : undefined);
 
-    function handleSelecionaData(date: DateRange | undefined) {
+    function handleSelecionaData(
+      date: { from?: Date | null; to?: Date | null } | undefined
+    ) {
       setDate(date);
       const from = date?.from ? format(date.from, "dd-MM-yyyy") : "";
       const to = date?.to ? format(date.to, "dd-MM-yyyy") : "";
@@ -342,49 +344,13 @@ export function Filtros({
     return (
       <div className={"flex flex-col grid gap-2"} key={campo.tag}>
         <p>{campo.nome}</p>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              id="date"
-              variant={"outline"}
-              className={cn(
-                "w-full md:w-[300px] justify-start text-left font-normal",
-                !date && "text-muted-foreground"
-              )}
-            >
-              {date && date.from ? (
-                date.to ? (
-                  <>
-                    {format(date.from, "LLL dd, y", {
-                      locale: ptBR,
-                    })}{" "}
-                    -{" "}
-                    {format(date.to, "LLL dd, y", {
-                      locale: ptBR,
-                    })}
-                  </>
-                ) : (
-                  format(date.from, "LLL dd, y", {
-                    locale: ptBR,
-                  })
-                )
-              ) : (
-                <span>Escolha uma data</span>
-              )}
-              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              initialFocus
-              mode="range"
-              defaultMonth={date && date.from}
-              selected={date}
-              onSelect={handleSelecionaData}
-              numberOfMonths={2}
-            />
-          </PopoverContent>
-        </Popover>
+        <DatePickerWithRange
+          className="w-full md:w-[300px]"
+          value={date}
+          onChange={handleSelecionaData}
+          defaultMonth={date?.from ?? undefined}
+          numberOfMonths={2}
+        />
       </div>
     );
   }
