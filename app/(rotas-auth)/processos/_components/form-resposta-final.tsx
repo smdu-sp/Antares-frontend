@@ -154,9 +154,6 @@ export default function FormRespostaFinal({
                   }}
                 />
               </FormControl>
-              <FormDescription>
-                Data em que o gabinete respondeu o processo ao solicitante
-              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -171,9 +168,6 @@ export default function FormRespostaFinal({
               className="bg-muted cursor-not-allowed"
             />
           </FormControl>
-          <FormDescription>
-            Unidade de origem do processo (não editável)
-          </FormDescription>
         </FormItem>
 
         <FormField
@@ -181,17 +175,14 @@ export default function FormRespostaFinal({
           name="resposta"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Resposta Final</FormLabel>
+              <FormLabel>Observações</FormLabel>
               <FormControl>
                 <Textarea
-                  placeholder="Descreva a resposta final ao processo..."
+                  placeholder="Observações sobre a resposta final..."
                   className="min-h-[120px]"
                   {...field}
                 />
               </FormControl>
-              <FormDescription>
-                Texto da resposta que será enviada ao solicitante
-              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
