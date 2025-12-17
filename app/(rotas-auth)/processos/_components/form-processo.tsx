@@ -41,6 +41,9 @@ const formSchema = z.object({
   data_recebimento: z.date({
     required_error: "Data de recebimento é obrigatória",
   }),
+  prazo: z.date({
+    required_error: "Prazo do processo é obrigatório",
+  }),
 });
 
 export default function FormProcesso({
@@ -65,15 +68,17 @@ export default function FormProcesso({
       data_recebimento: processoData?.data_recebimento
         ? new Date(processoData.data_recebimento)
         : undefined,
+      prazo: processoData?.prazo ? new Date(processoData.prazo) : undefined,
     },
   });
 
   async function onSubmit(data: z.infer<typeof formSchema>) {
     startTransition(async () => {
-      // Converte a data para ISO string
+      // Converte as datas para ISO string
       const dataFormatada = {
         ...data,
         data_recebimento: data.data_recebimento.toISOString(),
+        prazo: data.prazo.toISOString(),
       };
 
       let resp;
@@ -167,6 +172,31 @@ export default function FormProcesso({
               </FormControl>
               <FormDescription>
                 Data em que o gabinete recebeu o processo
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="prazo"
+          render={({ field }) => (
+            <FormItem className="flex flex-col">
+              <FormLabel>Prazo do Processo</FormLabel>
+              <FormControl>
+                <DateInput
+                  value={field.value ?? null}
+                  onChange={(d) => field.onChange(d ?? new Date())}
+                  placeholder="DD/MM/AAAA"
+                  calendarProps={{
+                    locale: ptBR,
+                    initialFocus: true,
+                    disabled: (date: Date) => date < new Date("1900-01-01"),
+                  }}
+                />
+              </FormControl>
+              <FormDescription>
+                Data limite para conclusão do processo
               </FormDescription>
               <FormMessage />
             </FormItem>
