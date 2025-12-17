@@ -81,7 +81,27 @@ export default function ProcessoDetalhesHeader({
         </div>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Prazo do Processo */}
+          {processo.prazo && (
+            <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+              <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-md">
+                <Calendar className="h-5 w-5 text-green-600 dark:text-green-400" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">
+                  Prazo do Processo
+                </p>
+                <p className="text-sm font-medium">
+                  {new Date(processo.prazo).toLocaleDateString("pt-BR", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </p>
+              </div>
+            </div>
+          )}
           <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
             <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-md">
               <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />

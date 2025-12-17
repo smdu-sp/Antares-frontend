@@ -25,7 +25,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import * as processo from "@/services/processos";
-import { useTransition } from "react";
+import { useTransition, useState, useRef } from "react";
+import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { CalendarIcon, Loader2 } from "lucide-react";
 import DateInput from "@/components/ui/date-input";
@@ -58,6 +59,7 @@ export default function FormProcesso({
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const pathname = usePathname();
+  const { data: session } = useSession();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -140,16 +142,92 @@ export default function FormProcesso({
         <FormField
           control={form.control}
           name="origem"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Unidade de Origem</FormLabel>
-              <FormControl>
-                <Input placeholder="EXPEDIENTE" {...field} />
-              </FormControl>
-              <FormDescription>Unidade que originou o processo</FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
+          render={({ field }) => {
+            const [suggestions, setSuggestions] = useState<string[]>([]);
+            const [showSuggestions, setShowSuggestions] = useState(false);
+            const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+            async function fetchSuggestions(q: string) {
+              if (!q || q.length < 2) {
+                setSuggestions([]);
+                return;
+              }
+              try {
+                const token = session?.access_token;
+                const headers = token
+                  ? { Authorization: `Bearer ${token}` }
+                  : undefined;
+                const res = await fetch(
+                  `http://localhost:3000/processos/origens/autocomplete?q=${encodeURIComponent(
+                    q
+                  )}`,
+                  { headers }
+                );
+                if (res.ok) {
+                  const data = await res.json();
+                  setSuggestions(Array.isArray(data) ? data : []);
+                } else {
+                  setSuggestions([]);
+                }
+              } catch {
+                setSuggestions([]);
+              }
+            }
+
+            function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+              field.onChange(e);
+              const value = e.target.value;
+              if (timeoutRef.current) clearTimeout(timeoutRef.current);
+              timeoutRef.current = setTimeout(() => {
+                fetchSuggestions(value);
+                setShowSuggestions(true);
+              }, 250);
+            }
+
+            function handleSelectSuggestion(s: string) {
+              field.onChange(s);
+              setShowSuggestions(false);
+            }
+
+            return (
+              <FormItem className="relative">
+                <FormLabel>Unidade de Origem</FormLabel>
+                <FormControl>
+                  <div>
+                    <Input
+                      placeholder="EXPEDIENTE"
+                      {...field}
+                      onChange={handleChange}
+                      autoComplete="off"
+                      onBlur={() =>
+                        setTimeout(() => setShowSuggestions(false), 200)
+                      }
+                      onFocus={() =>
+                        field.value && fetchSuggestions(field.value)
+                      }
+                    />
+                    {showSuggestions && suggestions.length > 0 && (
+                      <ul className="absolute z-10 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-md mt-1 w-full max-h-48 overflow-auto shadow-lg">
+                        {suggestions.map((s, i) => (
+                          <li
+                            key={s + i}
+                            className="px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800"
+                            onMouseDown={() => handleSelectSuggestion(s)}
+                          >
+                            {s}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </FormControl>
+                <FormDescription>
+                  Unidade que originou o processo
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            );
+          }}
         />
         <FormField
           control={form.control}

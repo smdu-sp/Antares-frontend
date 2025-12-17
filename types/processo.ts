@@ -46,6 +46,7 @@ export interface IProcesso {
   assunto: string;
   origem?: string;
   data_recebimento?: Date;
+  prazo?: Date;
   criadoEm: Date;
   atualizadoEm: Date;
   andamentos?: IAndamento[];
