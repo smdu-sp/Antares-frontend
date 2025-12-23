@@ -23,6 +23,11 @@ import {
   FileText,
   ChevronDown,
   ChevronRight,
+  CheckSquare,
+  Square,
+  CheckCircle2,
+  AlertCircle,
+  Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -51,6 +56,18 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function AndamentosDetalhes({
   processo,
@@ -64,6 +81,11 @@ export default function AndamentosDetalhes({
   const [loading, setLoading] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [historicoAberto, setHistoricoAberto] = useState(false);
+  const [selectedAndamentos, setSelectedAndamentos] = useState<Set<string>>(
+    new Set()
+  );
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const fetchAndamentos = useCallback(async () => {
     if (session?.access_token) {
@@ -88,6 +110,178 @@ export default function AndamentosDetalhes({
   const refreshFn = useCallback(() => {
     setRefreshKey((prev) => prev + 1);
   }, []);
+
+  // Funções para seleção múltipla
+  const toggleSelectionMode = () => {
+    setIsSelectionMode(!isSelectionMode);
+    setSelectedAndamentos(new Set());
+  };
+
+  const toggleAndamentoSelection = (andamentoId: string) => {
+    console.log(
+      "Toggle selection chamado com ID:",
+      andamentoId,
+      "Tipo:",
+      typeof andamentoId
+    );
+    const newSelected = new Set(selectedAndamentos);
+    if (newSelected.has(andamentoId)) {
+      newSelected.delete(andamentoId);
+      console.log("Removendo ID da seleção:", andamentoId);
+    } else {
+      newSelected.add(andamentoId);
+      console.log("Adicionando ID à seleção:", andamentoId);
+    }
+    console.log("Novo Set de selecionados:", Array.from(newSelected));
+    setSelectedAndamentos(newSelected);
+  };
+
+  const selectAllAndamentos = () => {
+    console.log(
+      "Select all chamado. Tamanho atual:",
+      selectedAndamentos.size,
+      "Total andamentos:",
+      andamentosOrdenados.length
+    );
+    console.log(
+      "IDs dos andamentos ordenados:",
+      andamentosOrdenados.map((a) => a.id)
+    );
+    if (selectedAndamentos.size === andamentosOrdenados.length) {
+      setSelectedAndamentos(new Set());
+      console.log("Desmarcando todos");
+    } else {
+      const newSet = new Set(andamentosOrdenados.map((a) => a.id));
+      console.log("Selecionando todos. Novo Set:", Array.from(newSet));
+      setSelectedAndamentos(newSet);
+    }
+  };
+
+  const clearSelection = () => {
+    console.log(
+      "Clear selection chamado. Set anterior:",
+      Array.from(selectedAndamentos)
+    );
+    setSelectedAndamentos(new Set());
+    console.log("Set limpo");
+  };
+
+  // Função para edição em lote
+  const handleBulkEdit = async (action: string, value?: any) => {
+    console.log("=== INÍCIO handleBulkEdit ===");
+    console.log("Action:", action, "Value:", value);
+    console.log("SelectedAndamentos Set size:", selectedAndamentos.size);
+    console.log(
+      "SelectedAndamentos Set contents:",
+      Array.from(selectedAndamentos)
+    );
+
+    if (selectedAndamentos.size === 0) return;
+
+    if (action === "delete") {
+      // Por enquanto, excluir sem confirmação para testar
+      const ids = Array.from(selectedAndamentos);
+      for (const id of ids) {
+        await andamento.server.remover(id);
+      }
+      clearSelection();
+      setIsSelectionMode(false);
+      refreshFn();
+      return;
+    }
+
+    try {
+      const ids = Array.from(selectedAndamentos);
+      // Verificar se algum ID é exatamente "lote"
+      const loteIndex = ids.indexOf("lote");
+      if (loteIndex !== -1) {
+        console.error(
+          "ENCONTRADO 'lote' no array de IDs na posição:",
+          loteIndex
+        );
+        console.error("IDs completos:", ids);
+      }
+
+      // Filtrar apenas IDs válidos (strings não vazias)
+      const validIds = ids.filter(
+        (id) => typeof id === "string" && id.trim() !== "" && id !== "lote"
+      );
+      console.log("IDs válidos após filtro:", validIds);
+
+      if (validIds.length === 0) {
+        console.error("Nenhum ID válido encontrado para edição em lote");
+        return;
+      }
+
+      let data: { ids: string[]; operacao: string };
+
+      if (action === "status") {
+        // Mapear status para operação
+        const operacao =
+          value === StatusAndamento.CONCLUIDO ? "concluir" : "prorrogar";
+        data = { ids: validIds, operacao };
+        console.log("Payload para atualização em lote:", data);
+        console.log("Payload JSON:", JSON.stringify(data));
+
+        // Tentar formato alternativo se o primeiro falhar
+        console.log("Tentando formato alternativo...");
+        const alternativeData = {
+          ids: validIds,
+          operacao,
+          lote: validIds, // Adicionar campo 'lote' com os IDs
+        };
+        console.log("Payload alternativo:", alternativeData);
+
+        try {
+          const response = await andamento.server.atualizarLote(
+            alternativeData
+          );
+          console.log(
+            "Resposta da função atualizarLote (alternativo):",
+            response
+          );
+
+          if (response.ok) {
+            clearSelection();
+            setIsSelectionMode(false);
+            refreshFn();
+            return;
+          } else {
+            console.error("Erro com payload alternativo:", response.error);
+          }
+        } catch (altError) {
+          console.error(
+            "Erro ao chamar atualizarLote (alternativo):",
+            altError
+          );
+        }
+      } else {
+        // Para outros casos, pode ser necessário ajustar
+        data = { ids: validIds, operacao: action };
+      }
+
+      console.log("=== CHAMANDO atualizarLote ===");
+      console.log("Data final sendo enviado:", data);
+      console.log("JSON.stringify(data):", JSON.stringify(data));
+
+      try {
+        const response = await andamento.server.atualizarLote(data);
+        console.log("Resposta da função atualizarLote:", response);
+
+        if (response.ok) {
+          clearSelection();
+          setIsSelectionMode(false);
+          refreshFn();
+        } else {
+          console.error("Erro na edição em lote:", response.error);
+        }
+      } catch (serverError) {
+        console.error("Erro ao chamar atualizarLote:", serverError);
+      }
+    } catch (error) {
+      console.error("Erro na edição em lote:", error);
+    }
+  };
 
   // Ordena andamentos por data de criação (mais recente primeiro)
   const andamentosOrdenados = [...andamentos].sort(
@@ -118,11 +312,28 @@ export default function AndamentosDetalhes({
     <div className="space-y-6">
       {/* Header com Botões de Criar Andamento e Resposta Final */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b">
-        <div>
-          <h2 className="text-2xl font-bold">Andamentos</h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Acompanhe a tramitação do processo
-          </p>
+        <div className="flex items-center gap-4">
+          <div>
+            <h2 className="text-2xl font-bold">Andamentos</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Acompanhe a tramitação do processo
+            </p>
+          </div>
+          {andamentosOrdenados.length > 0 && (
+            <Button
+              variant={isSelectionMode ? "default" : "outline"}
+              size="sm"
+              onClick={toggleSelectionMode}
+              className="flex items-center gap-2"
+            >
+              {isSelectionMode ? (
+                <CheckSquare className="h-4 w-4" />
+              ) : (
+                <Square className="h-4 w-4" />
+              )}
+              {isSelectionMode ? "Sair do modo seleção" : "Editar em lote"}
+            </Button>
+          )}
         </div>
         <div className="flex gap-2">
           <ModalAndamento
@@ -141,6 +352,92 @@ export default function AndamentosDetalhes({
         </div>
       </div>
 
+      {/* Barra de ações em lote */}
+      {isSelectionMode && (
+        <div className="flex items-center justify-between bg-muted/50 p-4 rounded-lg">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={selectAllAndamentos}
+              disabled={andamentosOrdenados.length === 0}
+            >
+              {selectedAndamentos.size === andamentosOrdenados.length
+                ? "Desmarcar todos"
+                : "Selecionar todos"}
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              {selectedAndamentos.size} de {andamentosOrdenados.length}{" "}
+              selecionados
+            </span>
+          </div>
+
+          {selectedAndamentos.size > 0 && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  handleBulkEdit("status", StatusAndamento.CONCLUIDO)
+                }
+                className="flex items-center gap-2"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                Marcar como Concluído
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  handleBulkEdit("status", StatusAndamento.PRORROGADO)
+                }
+                className="flex items-center gap-2"
+              >
+                <AlertCircle className="h-4 w-4" />
+                Marcar como Prorrogado
+              </Button>
+              <AlertDialog
+                open={showDeleteConfirm}
+                onOpenChange={setShowDeleteConfirm}
+              >
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="flex items-center gap-2"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Excluir Selecionados
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Tem certeza que deseja excluir {selectedAndamentos.size}{" "}
+                      andamento(s) selecionado(s)? Esta ação não pode ser
+                      desfeita.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => {
+                        handleBulkEdit("delete");
+                        setShowDeleteConfirm(false);
+                      }}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Excluir
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Andamentos em Andamento */}
       {andamentosEmAndamento.length > 0 && (
         <div className="space-y-4">
@@ -151,6 +448,18 @@ export default function AndamentosDetalhes({
           </h3>
           {andamentosEmAndamento.map((andamento) => (
             <Card key={andamento.id} className="border-l-4 border-l-blue-500">
+              {/* Checkbox para seleção múltipla */}
+              {isSelectionMode && (
+                <div className="p-4 pb-0">
+                  <Checkbox
+                    checked={selectedAndamentos.has(andamento.id)}
+                    onCheckedChange={() =>
+                      toggleAndamentoSelection(andamento.id)
+                    }
+                    className="mb-2"
+                  />
+                </div>
+              )}
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
@@ -249,6 +558,11 @@ export default function AndamentosDetalhes({
                         andamento={and}
                         processoId={processo.id}
                         onRefresh={refreshFn}
+                        isSelectionMode={isSelectionMode}
+                        isSelected={selectedAndamentos.has(and.id)}
+                        onToggleSelection={() =>
+                          toggleAndamentoSelection(and.id)
+                        }
                       />
                     ))}
                   </TableBody>
@@ -413,10 +727,16 @@ function AndamentoRow({
   andamento,
   processoId,
   onRefresh,
+  isSelectionMode = false,
+  isSelected = false,
+  onToggleSelection,
 }: {
   andamento: IAndamento;
   processoId: string;
   onRefresh: () => void;
+  isSelectionMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelection?: () => void;
 }) {
   const { data: session } = useSession();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -457,19 +777,26 @@ function AndamentoRow({
     <>
       <TableRow>
         <TableCell className="w-12">
-          {andamento.observacao && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6"
-              onClick={() => setIsExpanded(!isExpanded)}
-            >
-              {isExpanded ? (
-                <ChevronDown className="h-4 w-4" />
-              ) : (
-                <ChevronRight className="h-4 w-4" />
-              )}
-            </Button>
+          {isSelectionMode ? (
+            <Checkbox
+              checked={isSelected}
+              onCheckedChange={onToggleSelection}
+            />
+          ) : (
+            andamento.observacao && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={() => setIsExpanded(!isExpanded)}
+              >
+                {isExpanded ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </Button>
+            )
           )}
         </TableCell>
         <TableCell>

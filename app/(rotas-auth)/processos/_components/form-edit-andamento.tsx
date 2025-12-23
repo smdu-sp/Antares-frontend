@@ -90,11 +90,11 @@ export default function FormEditAndamento({
         prorrogacao:
           temProrrogacao && data.prorrogacao
             ? new Date(data.prorrogacao + "T00:00:00").toISOString()
-            : null, // Envia null para limpar quando checkbox desmarcado
+            : undefined, // Envia undefined para limpar quando checkbox desmarcado
         conclusao:
           temConclusao && data.conclusao
             ? new Date(data.conclusao + "T00:00:00").toISOString()
-            : null, // Envia null para limpar quando checkbox desmarcado
+            : undefined, // Envia undefined para limpar quando checkbox desmarcado
       };
 
       // Atualiza o status automaticamente baseado nos campos preenchidos

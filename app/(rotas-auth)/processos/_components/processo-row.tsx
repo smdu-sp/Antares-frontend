@@ -6,7 +6,6 @@ import { IProcesso } from "@/types/processo";
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import AndamentosRow from "./andamentos-row";
 import ModalAndamento from "./modal-andamento";
 import { TableRow, TableCell } from "@/components/ui/table";
 import ModalProcesso from "./modal-processo";
@@ -33,7 +32,6 @@ export default function ProcessoRow({ processo }: { processo: IProcesso }) {
     ultimoAndamento && diasRestantes !== null
       ? getStatusPrazo(diasRestantes, ultimoAndamento.status)
       : null;
-  const Icone = statusPrazo?.icone;
 
   return (
     <>
@@ -91,7 +89,7 @@ export default function ProcessoRow({ processo }: { processo: IProcesso }) {
                 statusPrazo.cor
               )}
             >
-              <Icone className="h-3 w-3" />
+              {statusPrazo.icone && <statusPrazo.icone className="h-3 w-3" />}
               <span>{statusPrazo.texto}</span>
             </div>
           ) : (
@@ -119,12 +117,6 @@ export default function ProcessoRow({ processo }: { processo: IProcesso }) {
                   }}
                 />
               </div>
-              <AndamentosRow
-                processoId={processo.id}
-                onRefresh={(fn) => {
-                  refreshAndamentosRef.current = fn;
-                }}
-              />
             </div>
           </TableCell>
         </TableRow>
