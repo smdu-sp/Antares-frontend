@@ -22,14 +22,11 @@ export default function FiltroAtrasados() {
   useEffect(() => {
     async function carregarContagem() {
       if (!session?.access_token) {
-        console.log("Token não disponível ainda");
         return;
       }
 
       try {
-        console.log("Buscando contagem de atrasados...");
         const response = await contarAtrasados(session.access_token);
-        console.log("Resposta da API:", response);
 
         if (
           response.ok &&
@@ -38,17 +35,10 @@ export default function FiltroAtrasados() {
         ) {
           const count = Number(response.data);
           if (!isNaN(count)) {
-            console.log("Contagem definida:", count);
             setContagem(count);
-          } else {
-            console.warn("Dados inválidos recebidos:", response.data);
           }
-        } else {
-          console.warn("Resposta não OK ou dados nulos:", response);
         }
-      } catch (error) {
-        console.error("Erro ao carregar contagem:", error);
-      }
+      } catch (error) {}
     }
 
     carregarContagem();
