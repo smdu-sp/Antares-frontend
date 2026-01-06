@@ -70,10 +70,6 @@ export default function FormRespostaFinal({
         );
 
         if (andamentosEmAndamento && andamentosEmAndamento.length > 0) {
-          console.log(
-            `Concluindo ${andamentosEmAndamento.length} andamento(s) em andamento...`
-          );
-
           // Concluir todos os andamentos em andamento usando a função de lote
           const ids = andamentosEmAndamento.map((and) => and.id);
           const concluirResp = await andamentoService.server.atualizarLote({
@@ -116,7 +112,6 @@ export default function FormRespostaFinal({
         router.refresh();
         onSuccess?.();
       } catch (err) {
-        console.error("Erro ao processar resposta final:", err);
         toast.error("Erro ao processar resposta final");
       }
     });

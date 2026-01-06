@@ -133,64 +133,30 @@ export default function AndamentosDetalhes({
   };
 
   const toggleAndamentoSelection = (andamentoId: string) => {
-    console.log(
-      "Toggle selection chamado com ID:",
-      andamentoId,
-      "Tipo:",
-      typeof andamentoId
-    );
     const newSelected = new Set(selectedAndamentos);
     if (newSelected.has(andamentoId)) {
       newSelected.delete(andamentoId);
-      console.log("Removendo ID da seleção:", andamentoId);
     } else {
       newSelected.add(andamentoId);
-      console.log("Adicionando ID à seleção:", andamentoId);
     }
-    console.log("Novo Set de selecionados:", Array.from(newSelected));
     setSelectedAndamentos(newSelected);
   };
 
   const selectAllAndamentos = () => {
-    console.log(
-      "Select all chamado. Tamanho atual:",
-      selectedAndamentos.size,
-      "Total andamentos:",
-      andamentosOrdenados.length
-    );
-    console.log(
-      "IDs dos andamentos ordenados:",
-      andamentosOrdenados.map((a) => a.id)
-    );
     if (selectedAndamentos.size === andamentosOrdenados.length) {
       setSelectedAndamentos(new Set());
-      console.log("Desmarcando todos");
     } else {
       const newSet = new Set(andamentosOrdenados.map((a) => a.id));
-      console.log("Selecionando todos. Novo Set:", Array.from(newSet));
       setSelectedAndamentos(newSet);
     }
   };
 
   const clearSelection = () => {
-    console.log(
-      "Clear selection chamado. Set anterior:",
-      Array.from(selectedAndamentos)
-    );
     setSelectedAndamentos(new Set());
-    console.log("Set limpo");
   };
 
   // Função para edição em lote
   const handleBulkEdit = async (action: string, value?: any) => {
-    console.log("=== INÍCIO handleBulkEdit ===");
-    console.log("Action:", action, "Value:", value);
-    console.log("SelectedAndamentos Set size:", selectedAndamentos.size);
-    console.log(
-      "SelectedAndamentos Set contents:",
-      Array.from(selectedAndamentos)
-    );
-
     if (selectedAndamentos.size === 0) return;
 
     if (action === "delete") {
@@ -207,24 +173,13 @@ export default function AndamentosDetalhes({
 
     try {
       const ids = Array.from(selectedAndamentos);
-      // Verificar se algum ID é exatamente "lote"
-      const loteIndex = ids.indexOf("lote");
-      if (loteIndex !== -1) {
-        console.error(
-          "ENCONTRADO 'lote' no array de IDs na posição:",
-          loteIndex
-        );
-        console.error("IDs completos:", ids);
-      }
 
       // Filtrar apenas IDs válidos (strings não vazias)
       const validIds = ids.filter(
         (id) => typeof id === "string" && id.trim() !== "" && id !== "lote"
       );
-      console.log("IDs válidos após filtro:", validIds);
 
       if (validIds.length === 0) {
-        console.error("Nenhum ID válido encontrado para edição em lote");
         return;
       }
 
@@ -254,20 +209,13 @@ export default function AndamentosDetalhes({
         data = { ids: validIds, operacao: action };
       }
 
-      console.log("=== CHAMANDO atualizarLote ===");
-      console.log("Payload:", data);
-      console.log("JSON:", JSON.stringify(data));
-
       const response = await andamento.server.atualizarLote(data);
-      console.log("Resposta:", response);
 
       if (response.ok) {
         clearSelection();
         setIsSelectionMode(false);
         refreshFn();
       } else {
-        console.error("Erro na edição em lote:", response.error);
-        console.error("===== PROBLEMA NO BACKEND =====");
         console.error("O backend está retornando erro 404 com a mensagem:");
         console.error(`'${response.error}'`);
         console.error(

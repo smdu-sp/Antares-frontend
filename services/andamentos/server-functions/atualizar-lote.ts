@@ -12,21 +12,12 @@ export async function atualizarLote(data: {
   operacao: string;
   prazo?: string;
 }): Promise<IRespostaAndamento> {
-  console.log("=== BACKEND atualizarLote ===");
-  console.log("Data recebido:", data);
-  console.log("IDs recebidos:", data.ids);
-  console.log("Operação:", data.operacao);
-
   try {
     const session = await auth();
     const baseURL = process.env.NEXT_PUBLIC_API_URL;
     if (!session) {
-      console.log("Sessão não encontrada, redirecionando para login");
       redirect("/login");
     }
-
-    console.log("Enviando para API:", `${baseURL}andamentos/lote`);
-    console.log("Body JSON:", JSON.stringify(data));
 
     const response: Response = await fetch(`${baseURL}andamentos/lote`, {
       method: "PATCH",
@@ -37,9 +28,7 @@ export async function atualizarLote(data: {
       body: JSON.stringify(data),
     });
 
-    console.log("Status da resposta:", response.status);
     const dataResponse = await response.json();
-    console.log("Dados da resposta:", dataResponse);
 
     if (response.status === 200) {
       revalidateTag("andamentos");
@@ -51,7 +40,6 @@ export async function atualizarLote(data: {
       };
     }
 
-    console.log("Erro na resposta:", dataResponse);
     return {
       ok: false,
       error: dataResponse.message || "Erro desconhecido",
@@ -59,7 +47,6 @@ export async function atualizarLote(data: {
       status: dataResponse.statusCode || response.status,
     };
   } catch (error) {
-    console.error("Erro na função atualizarLote:", error);
     return {
       ok: false,
       error:
