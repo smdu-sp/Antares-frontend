@@ -10,13 +10,12 @@ import { revalidateTag } from "next/cache";
 export async function atualizarLote(data: {
   ids: string[];
   operacao: string;
-  lote?: string[]; // Campo alternativo
+  prazo?: string;
 }): Promise<IRespostaAndamento> {
   console.log("=== BACKEND atualizarLote ===");
   console.log("Data recebido:", data);
   console.log("IDs recebidos:", data.ids);
   console.log("Operação:", data.operacao);
-  console.log("Campo lote (se existir):", data.lote);
 
   try {
     const session = await auth();

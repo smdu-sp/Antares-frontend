@@ -68,6 +68,19 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import DateInput from "@/components/ui/date-input";
+import { ptBR } from "date-fns/locale";
 
 export default function AndamentosDetalhes({
   processo,
@@ -86,6 +99,8 @@ export default function AndamentosDetalhes({
   );
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showProrrogarDialog, setShowProrrogarDialog] = useState(false);
+  const [dataProrrogacao, setDataProrrogacao] = useState<Date | null>(null);
 
   const fetchAndamentos = useCallback(async () => {
     if (session?.access_token) {
@@ -213,47 +228,26 @@ export default function AndamentosDetalhes({
         return;
       }
 
-      let data: { ids: string[]; operacao: string };
+      let data: { ids: string[]; operacao: string; prazo?: string };
 
       if (action === "status") {
-        // Mapear status para operação
-        const operacao =
-          value === StatusAndamento.CONCLUIDO ? "concluir" : "prorrogar";
-        data = { ids: validIds, operacao };
-        console.log("Payload para atualização em lote:", data);
-        console.log("Payload JSON:", JSON.stringify(data));
+        // Verificar se é um objeto com status e prazo (prorrogação)
+        if (typeof value === "object" && value.status) {
+          const operacao =
+            value.status === StatusAndamento.CONCLUIDO
+              ? "concluir"
+              : "prorrogar";
+          data = { ids: validIds, operacao };
 
-        // Tentar formato alternativo se o primeiro falhar
-        console.log("Tentando formato alternativo...");
-        const alternativeData = {
-          ids: validIds,
-          operacao,
-          lote: validIds, // Adicionar campo 'lote' com os IDs
-        };
-        console.log("Payload alternativo:", alternativeData);
-
-        try {
-          const response = await andamento.server.atualizarLote(
-            alternativeData
-          );
-          console.log(
-            "Resposta da função atualizarLote (alternativo):",
-            response
-          );
-
-          if (response.ok) {
-            clearSelection();
-            setIsSelectionMode(false);
-            refreshFn();
-            return;
-          } else {
-            console.error("Erro com payload alternativo:", response.error);
+          // Adicionar prazo se for prorrogação
+          if (operacao === "prorrogar" && value.prazo) {
+            data.prazo = value.prazo;
           }
-        } catch (altError) {
-          console.error(
-            "Erro ao chamar atualizarLote (alternativo):",
-            altError
-          );
+        } else {
+          // Mapear status direto para operação (usado em concluir)
+          const operacao =
+            value === StatusAndamento.CONCLUIDO ? "concluir" : "prorrogar";
+          data = { ids: validIds, operacao };
         }
       } else {
         // Para outros casos, pode ser necessário ajustar
@@ -261,22 +255,29 @@ export default function AndamentosDetalhes({
       }
 
       console.log("=== CHAMANDO atualizarLote ===");
-      console.log("Data final sendo enviado:", data);
-      console.log("JSON.stringify(data):", JSON.stringify(data));
+      console.log("Payload:", data);
+      console.log("JSON:", JSON.stringify(data));
 
-      try {
-        const response = await andamento.server.atualizarLote(data);
-        console.log("Resposta da função atualizarLote:", response);
+      const response = await andamento.server.atualizarLote(data);
+      console.log("Resposta:", response);
 
-        if (response.ok) {
-          clearSelection();
-          setIsSelectionMode(false);
-          refreshFn();
-        } else {
-          console.error("Erro na edição em lote:", response.error);
-        }
-      } catch (serverError) {
-        console.error("Erro ao chamar atualizarLote:", serverError);
+      if (response.ok) {
+        clearSelection();
+        setIsSelectionMode(false);
+        refreshFn();
+      } else {
+        console.error("Erro na edição em lote:", response.error);
+        console.error("===== PROBLEMA NO BACKEND =====");
+        console.error("O backend está retornando erro 404 com a mensagem:");
+        console.error(`'${response.error}'`);
+        console.error(
+          "Isso indica que o backend está iterando sobre as propriedades do objeto"
+        );
+        console.error("em vez dos valores do array 'ids'.");
+        console.error(
+          "O backend precisa ser corrigido para usar: for (const id of data.ids)"
+        );
+        console.error("=============================");
       }
     } catch (error) {
       console.error("Erro na edição em lote:", error);
@@ -312,28 +313,11 @@ export default function AndamentosDetalhes({
     <div className="space-y-6">
       {/* Header com Botões de Criar Andamento e Resposta Final */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b">
-        <div className="flex items-center gap-4">
-          <div>
-            <h2 className="text-2xl font-bold">Andamentos</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Acompanhe a tramitação do processo
-            </p>
-          </div>
-          {andamentosOrdenados.length > 0 && (
-            <Button
-              variant={isSelectionMode ? "default" : "outline"}
-              size="sm"
-              onClick={toggleSelectionMode}
-              className="flex items-center gap-2"
-            >
-              {isSelectionMode ? (
-                <CheckSquare className="h-4 w-4" />
-              ) : (
-                <Square className="h-4 w-4" />
-              )}
-              {isSelectionMode ? "Sair do modo seleção" : "Editar em lote"}
-            </Button>
-          )}
+        <div>
+          <h2 className="text-2xl font-bold">Andamentos</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Acompanhe a tramitação do processo
+          </p>
         </div>
         <div className="flex gap-2">
           <ModalAndamento
@@ -343,6 +327,21 @@ export default function AndamentosDetalhes({
             size="lg"
             variant="default"
           />
+          {andamentosOrdenados.length > 0 && (
+            <Button
+              variant={isSelectionMode ? "default" : "outline"}
+              size="lg"
+              onClick={toggleSelectionMode}
+              className="flex items-center gap-2"
+            >
+              {isSelectionMode ? (
+                <CheckSquare className="h-5 w-5 mr-2" />
+              ) : (
+                <Square className="h-5 w-5 mr-2" />
+              )}
+              {isSelectionMode ? "Sair do modo seleção" : "Editar em lote"}
+            </Button>
+          )}
           <ModalRespostaFinal
             processo={processo}
             onSuccess={refreshFn}
@@ -385,17 +384,74 @@ export default function AndamentosDetalhes({
                 <CheckCircle2 className="h-4 w-4" />
                 Marcar como Concluído
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  handleBulkEdit("status", StatusAndamento.PRORROGADO)
-                }
-                className="flex items-center gap-2"
+
+              <Dialog
+                open={showProrrogarDialog}
+                onOpenChange={setShowProrrogarDialog}
               >
-                <AlertCircle className="h-4 w-4" />
-                Marcar como Prorrogado
-              </Button>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-2"
+                  >
+                    <AlertCircle className="h-4 w-4" />
+                    Marcar como Prorrogado
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Prorrogar Andamentos</DialogTitle>
+                    <DialogDescription>
+                      Informe a nova data de prazo para os{" "}
+                      {selectedAndamentos.size} andamento(s) selecionado(s).
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="dataProrrogacao">
+                        Nova Data de Prazo
+                      </Label>
+                      <DateInput
+                        value={dataProrrogacao}
+                        onChange={(d) => setDataProrrogacao(d ?? null)}
+                        placeholder="DD/MM/AAAA"
+                        calendarProps={{ locale: ptBR }}
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowProrrogarDialog(false);
+                        setDataProrrogacao(null);
+                      }}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        if (dataProrrogacao) {
+                          // Converter Date para ISO string
+                          const dataISO = dataProrrogacao.toISOString();
+
+                          handleBulkEdit("status", {
+                            status: StatusAndamento.PRORROGADO,
+                            prazo: dataISO,
+                          });
+                          setShowProrrogarDialog(false);
+                          setDataProrrogacao(null);
+                        }
+                      }}
+                      disabled={!dataProrrogacao}
+                    >
+                      Confirmar Prorrogação
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
               <AlertDialog
                 open={showDeleteConfirm}
                 onOpenChange={setShowDeleteConfirm}
