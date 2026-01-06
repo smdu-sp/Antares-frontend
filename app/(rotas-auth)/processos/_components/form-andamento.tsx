@@ -165,9 +165,6 @@ export default function FormAndamento({
                   />
                 )}
               </FormControl>
-              <FormDescription>
-                Selecione múltiplas unidades para criar andamentos automáticos
-              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -191,9 +188,6 @@ export default function FormAndamento({
                   }}
                 />
               </FormControl>
-              <FormDescription>
-                Data em que o gabinete enviou o processo para a unidade
-              </FormDescription>
               <FormMessage />
             </FormItem>
           )}

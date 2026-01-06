@@ -63,58 +63,61 @@ export default function FormRespostaFinal({
 
   async function onSubmit(data: z.infer<typeof formSchema>) {
     startTransition(async () => {
-      // Enviando resposta final (sem logs de depuração)
-      // Converte a data para ISO string
-      const dataFormatada = {
-        processo_id: processoData.id,
-        data_resposta_final: data.data_resposta_final.toISOString(),
-        resposta_final: data.resposta,
-        unidade_respondida_id: processoData.origem || "", // Usa a origem do processo
-      };
+      try {
+        // 1. Primeiro, verificar se há andamentos em andamento e concluí-los
+        const andamentosEmAndamento = processoData.andamentos?.filter(
+          (and) => and.status === StatusAndamento.EM_ANDAMENTO
+        );
 
-      const resp = await processo.server.criarRespostaFinal(dataFormatada);
-
-      if (!resp.ok) {
-        toast.error("Erro", { description: resp.error });
-      } else {
-        // Cria um andamento representando a resposta final e marca como CONCLUIDO
-        try {
-          const andamentoPayload = {
-            processo_id: processoData.id,
-            origem: processoData.origem || "",
-            destino: processoData.origem || "",
-            data_envio: data.data_resposta_final.toISOString(),
-            prazo: data.data_resposta_final.toISOString(),
-            status: StatusAndamento.CONCLUIDO,
-            observacao: data.resposta,
-          };
-
-          const andamentoResp = await andamentoService.server.criar(
-            andamentoPayload as any
+        if (andamentosEmAndamento && andamentosEmAndamento.length > 0) {
+          console.log(
+            `Concluindo ${andamentosEmAndamento.length} andamento(s) em andamento...`
           );
 
-          if (!andamentoResp.ok) {
-            toast.warning(
-              "Resposta criada, mas não foi possível criar o andamento.",
-              {
-                description: andamentoResp.error,
-              }
-            );
-          } else {
-            toast.success(
-              "Resposta final registrada e andamento criado com sucesso"
-            );
+          // Concluir todos os andamentos em andamento usando a função de lote
+          const ids = andamentosEmAndamento.map((and) => and.id);
+          const concluirResp = await andamentoService.server.atualizarLote({
+            ids,
+            operacao: "concluir",
+          });
+
+          if (!concluirResp.ok) {
+            toast.error("Erro ao concluir andamentos em andamento", {
+              description: concluirResp.error,
+            });
+            return;
           }
-        } catch (err) {
-          console.error("Erro ao criar andamento automático:", err);
-          toast.warning(
-            "Resposta criada, mas erro ao criar andamento automático"
+
+          toast.success(
+            `${andamentosEmAndamento.length} andamento(s) concluído(s) automaticamente`
           );
         }
+
+        // 2. Enviando resposta final
+        const dataFormatada = {
+          processo_id: processoData.id,
+          data_resposta_final: data.data_resposta_final.toISOString(),
+          resposta_final: data.resposta,
+          unidade_respondida_id: processoData.origem || "",
+        };
+
+        const resp = await processo.server.criarRespostaFinal(dataFormatada);
+
+        if (!resp.ok) {
+          toast.error("Erro", { description: resp.error });
+          return;
+        }
+
+        toast.success(
+          "Resposta final registrada e processo concluído com sucesso"
+        );
 
         form.reset();
         router.refresh();
         onSuccess?.();
+      } catch (err) {
+        console.error("Erro ao processar resposta final:", err);
+        toast.error("Erro ao processar resposta final");
       }
     });
   }
