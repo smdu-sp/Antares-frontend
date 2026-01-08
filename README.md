@@ -160,8 +160,6 @@ Ao criar uma resposta final:
 
 ## 🐛 Troubleshooting
 
-Consulte o arquivo [TROUBLESHOOTING-LOGIN.md](TROUBLESHOOTING-LOGIN.md) para problemas relacionados a autenticação LDAP.
-
 ### Problemas Comuns
 
 **Backend não conecta:**
