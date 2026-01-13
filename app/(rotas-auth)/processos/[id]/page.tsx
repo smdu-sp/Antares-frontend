@@ -3,7 +3,9 @@
 import { auth } from "@/lib/auth/auth";
 import { redirect } from "next/navigation";
 import * as processo from "@/services/processos";
+import * as unidade from "@/services/unidades";
 import { IProcesso } from "@/types/processo";
+import { IUnidade } from "@/types/unidade";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -64,7 +66,32 @@ async function ProcessoDetalhesPage({
     );
   }
 
-  const processoData = response.data as IProcesso;
+  let processoData = response.data as any;
+
+  // Enriquecer dados com informações das unidades
+  if (processoData.interessado_id || processoData.unidade_remetente_id) {
+    const unidadesResponse = await unidade.listaCompleta(session.access_token);
+    if (unidadesResponse.ok && unidadesResponse.data) {
+      const unidades = unidadesResponse.data as IUnidade[];
+      const unidadesMap = new Map(unidades.map((u) => [u.id, u]));
+
+      if (processoData.interessado_id) {
+        const unidadeInt = unidadesMap.get(processoData.interessado_id);
+        if (unidadeInt) {
+          processoData.unidadeInteressada = unidadeInt;
+        }
+      }
+
+      if (processoData.unidade_remetente_id) {
+        const unidadeRem = unidadesMap.get(processoData.unidade_remetente_id);
+        if (unidadeRem) {
+          processoData.unidadeRemetente = unidadeRem;
+        }
+      }
+    }
+  }
+
+  processoData = processoData as IProcesso;
 
   return (
     <div className="w-full px-0 md:px-8 pb-20 md:pb-14 h-full md:container mx-auto">

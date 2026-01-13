@@ -21,11 +21,15 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { IProcesso, ICreateProcesso, IUpdateProcesso } from "@/types/processo";
+import { IUnidade } from "@/types/unidade";
+import { IInteressado } from "@/types/interessado";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import * as processo from "@/services/processos";
-import { useTransition, useState, useRef } from "react";
+import { listaCompleta as listaCompletaUnidades } from "@/services/unidades";
+import * as interessado from "@/services/interessados";
+import { useTransition, useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { CalendarIcon, Loader2 } from "lucide-react";
@@ -34,10 +38,13 @@ import { useRouter, usePathname } from "next/navigation";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { MultiSelect } from "@/components/multi-select";
 
 const formSchema = z.object({
   numero_sei: z.string().min(3, "Número SEI deve ter ao menos 3 caracteres"),
   assunto: z.string().min(5, "Assunto deve ter ao menos 5 caracteres"),
+  interessado_id: z.string().optional(),
+  unidade_remetente_id: z.string().optional(),
   origem: z.string().min(2, "Unidade de origem deve ter ao menos 2 caracteres"),
   data_recebimento: z.date({
     required_error: "Data de recebimento é obrigatória",
@@ -61,11 +68,57 @@ export default function FormProcesso({
   const pathname = usePathname();
   const { data: session } = useSession();
 
+  const [unidades, setUnidades] = useState<IUnidade[]>([]);
+  const [loadingUnidades, setLoadingUnidades] = useState(true);
+  const [interessados, setInteressados] = useState<IInteressado[]>([]);
+  const [loadingInteressados, setLoadingInteressados] = useState(true);
+
+  useEffect(() => {
+    async function carregarUnidades() {
+      if (!session?.access_token) return;
+      try {
+        const resposta = await listaCompletaUnidades(session.access_token);
+        if (resposta.ok && Array.isArray(resposta.data)) {
+          setUnidades(resposta.data as IUnidade[]);
+        }
+      } catch (error) {
+        console.error("Erro ao carregar unidades:", error);
+      } finally {
+        setLoadingUnidades(false);
+      }
+    }
+    carregarUnidades();
+  }, [session?.access_token]);
+
+  useEffect(() => {
+    async function carregarInteressados() {
+      if (!session?.access_token) return;
+      try {
+        const resposta = await interessado.query.listaCompleta(
+          session.access_token
+        );
+        if (Array.isArray(resposta)) {
+          setInteressados(resposta);
+        }
+      } catch (error) {
+        console.error("Erro ao carregar interessados:", error);
+      } finally {
+        setLoadingInteressados(false);
+      }
+    }
+    carregarInteressados();
+  }, [session?.access_token]);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       numero_sei: processoData?.numero_sei || "",
       assunto: processoData?.assunto || "",
+      interessado_id: processoData?.interessado_id || "",
+      unidade_remetente_id:
+        processoData?.unidadeRemetente?.id ||
+        processoData?.unidade_remetente ||
+        "",
       origem: processoData?.origem || "",
       data_recebimento: processoData?.data_recebimento
         ? new Date(processoData.data_recebimento)
@@ -76,12 +129,24 @@ export default function FormProcesso({
 
   async function onSubmit(data: z.infer<typeof formSchema>) {
     startTransition(async () => {
-      // Converte as datas para ISO string
-      const dataFormatada = {
-        ...data,
+      // Converte as datas para ISO string e mapeia os campos
+      const dataFormatada: any = {
+        numero_sei: data.numero_sei,
+        assunto: data.assunto,
+        origem: data.origem,
         data_recebimento: data.data_recebimento.toISOString(),
         prazo: data.prazo.toISOString(),
       };
+
+      // Adiciona interessado_id e unidade_remetente_id se fornecidos
+      if (data.interessado_id) {
+        dataFormatada.interessado_id = data.interessado_id;
+      }
+      if (data.unidade_remetente_id) {
+        dataFormatada.unidade_remetente_id = data.unidade_remetente_id;
+      }
+
+      console.log("📤 Dados sendo enviados ao backend:", dataFormatada);
 
       let resp;
       if (isUpdating && processoData?.id) {
@@ -135,6 +200,66 @@ export default function FormProcesso({
                   {...field}
                 />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="interessado_id"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Interessado</FormLabel>
+              <FormControl>
+                {loadingInteressados ? (
+                  <div className="flex items-center justify-center p-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  </div>
+                ) : (
+                  <MultiSelect
+                    options={interessados.map((i) => ({
+                      label: i.valor,
+                      value: i.id,
+                    }))}
+                    onValueChange={(values) => field.onChange(values[0] || "")}
+                    value={field.value ? [field.value] : []}
+                    placeholder="Selecione o interessado"
+                    variant="default"
+                    maxCount={1}
+                  />
+                )}
+              </FormControl>
+              <FormDescription>Interessado no processo</FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="unidade_remetente_id"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Unidade Remetente</FormLabel>
+              <FormControl>
+                {loadingUnidades ? (
+                  <div className="flex items-center justify-center p-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  </div>
+                ) : (
+                  <MultiSelect
+                    options={unidades.map((u) => ({
+                      label: `${u.sigla} - ${u.nome}`,
+                      value: u.id,
+                    }))}
+                    onValueChange={(values) => field.onChange(values[0] || "")}
+                    value={field.value ? [field.value] : []}
+                    placeholder="Selecione a unidade remetente"
+                    variant="default"
+                    maxCount={1}
+                  />
+                )}
+              </FormControl>
+              <FormDescription>Unidade que enviou o processo</FormDescription>
               <FormMessage />
             </FormItem>
           )}

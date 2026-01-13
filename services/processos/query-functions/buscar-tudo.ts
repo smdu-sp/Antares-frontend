@@ -15,6 +15,7 @@ export async function buscarTudo(
     const params = new URLSearchParams({
       pagina: pagina.toString(),
       limite: limite.toString(),
+      include: "unidadeInteressada,unidadeRemetente",
       ...(busca && { busca }),
       ...(vencendoHoje && { vencendoHoje: "true" }),
       ...(atrasados && { atrasados: "true" }),

@@ -777,9 +777,34 @@ function AndamentoRow({
 
   const statusBadge = getStatusBadge(andamento.status);
 
+  // Calcular cor da linha baseado no prazo do andamento
+  const getRowColor = () => {
+    // Se concluído, sempre verde claro
+    if (andamento.status === StatusAndamento.CONCLUIDO) {
+      return "bg-green-50 dark:bg-green-950/20 hover:bg-green-100 dark:hover:bg-green-950/30";
+    }
+
+    // Se em andamento, verifica o prazo
+    const diasRestantes = calcularDiasRestantes(
+      new Date(andamento.prazo),
+      andamento.prorrogacao
+    );
+
+    if (diasRestantes !== null) {
+      if (diasRestantes < 0)
+        return "bg-red-50 dark:bg-red-950/20 hover:bg-red-100 dark:hover:bg-red-950/30"; // Atrasado
+      if (diasRestantes === 0)
+        return "bg-orange-50 dark:bg-orange-950/20 hover:bg-orange-100 dark:hover:bg-orange-950/30"; // Vencendo hoje
+      if (diasRestantes <= 7)
+        return "bg-yellow-50 dark:bg-yellow-950/20 hover:bg-yellow-100 dark:hover:bg-yellow-950/30"; // Próximo do prazo
+    }
+
+    return "hover:bg-muted/50"; // Em andamento (padrão)
+  };
+
   return (
     <>
-      <TableRow>
+      <TableRow className={cn("transition-colors", getRowColor())}>
         <TableCell className="w-12">
           {isSelectionMode ? (
             <Checkbox
