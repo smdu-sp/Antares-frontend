@@ -97,6 +97,9 @@ async function Home({
         total = paginado.total || 0;
         dados = paginado.data || [];
 
+        // Filtrar apenas processos ativos (soft delete)
+        dados = dados.filter((p) => p.ativo === true);
+
         // Enriquecer dados com informações das unidades e interessados
         if (dados.length > 0) {
           // Buscar lista de unidades e interessados
@@ -150,6 +153,14 @@ async function Home({
                 )}...)`;
               }
             }
+
+            // Filtrar apenas andamentos ativos (soft delete)
+            if (proc.andamentos && Array.isArray(proc.andamentos)) {
+              proc.andamentos = proc.andamentos.filter(
+                (a: IAndamento) => a.ativo === true,
+              );
+            }
+
             return proc;
           });
 
@@ -232,7 +243,9 @@ async function Home({
 
     if (andamentosResponse.ok && andamentosResponse.data) {
       const andamentosPaginados = andamentosResponse.data as any;
-      const andamentosLista = andamentosPaginados.data || [];
+      const andamentosLista = (andamentosPaginados.data || []).filter(
+        (a: IAndamento) => a.ativo === true, // Filtrar apenas andamentos ativos
+      );
       const hoje = new Date();
       hoje.setHours(0, 0, 0, 0);
 

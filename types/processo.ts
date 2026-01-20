@@ -31,6 +31,7 @@ export interface IAndamento {
   status: StatusAndamento;
   data_resposta?: Date | null;
   observacao?: string | null;
+  ativo: boolean;
   criadoEm: Date;
   atualizadoEm: Date;
   processo_id: string;
@@ -56,6 +57,7 @@ export interface IProcesso {
   prazo?: Date;
   data_resposta_final?: Date | null;
   resposta_final?: string | null;
+  ativo: boolean;
   criadoEm: Date;
   atualizadoEm: Date;
   andamentos?: IAndamento[];

@@ -11,6 +11,7 @@ import {
   forwardRef,
   useImperativeHandle,
 } from "react";
+import { useTheme } from "next-themes";
 import { AgGridReact } from "ag-grid-react";
 import {
   ColDef,
@@ -53,6 +54,7 @@ function AndamentosDetail({
   unidades: IUnidade[];
 }) {
   const { data: session } = useSession();
+  const { theme, systemTheme } = useTheme();
   const [andamentos, setAndamentos] = useState<IAndamento[]>([]);
   const [loading, setLoading] = useState(true);
   const [loaded, setLoaded] = useState(false);
@@ -480,11 +482,21 @@ function AndamentosDetail({
 
   return (
     <div
-      className="p-6 bg-gradient-to-r from-gray-50 to-gray-100"
+      className={`p-6 bg-gradient-to-r ${
+        theme === "dark" || (theme === "system" && systemTheme === "dark")
+          ? "from-gray-900 to-gray-800"
+          : "from-gray-50 to-gray-100"
+      }`}
       style={{ width: "100%", minHeight: "200px" }}
     >
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold text-gray-700">
+        <h3
+          className={`text-lg font-semibold ${
+            theme === "dark" || (theme === "system" && systemTheme === "dark")
+              ? "text-gray-200"
+              : "text-gray-700"
+          }`}
+        >
           Andamentos do Processo - {processo.numero_sei}
         </h3>
         <Button
@@ -497,11 +509,31 @@ function AndamentosDetail({
       </div>
 
       <div
-        className="ag-theme-alpine"
-        style={{
-          height: `${gridHeight}px`,
-          width: "100%",
-        }}
+        className={`ag-theme-alpine ${
+          theme === "dark" || (theme === "system" && systemTheme === "dark")
+            ? "dark"
+            : ""
+        }`}
+        style={
+          {
+            height: `${gridHeight}px`,
+            width: "100%",
+            ...(theme === "dark" ||
+            (theme === "system" && systemTheme === "dark")
+              ? {
+                  "--ag-background-color": "#1a1a1a",
+                  "--ag-header-background-color": "#262626",
+                  "--ag-header-foreground-color": "#e5e7eb",
+                  "--ag-odd-row-background-color": "#1a1a1a",
+                  "--ag-row-hover-color": "#2d2d2d",
+                  "--ag-border-color": "#404040",
+                  "--ag-foreground-color": "#e5e7eb",
+                  "--ag-secondary-foreground-color": "#a3a3a3",
+                  "--ag-cell-horizontal-padding": "12px",
+                }
+              : {}),
+          } as React.CSSProperties
+        }
       >
         <AgGridReact
           ref={gridRef}
@@ -514,47 +546,7 @@ function AndamentosDetail({
           suppressHorizontalScroll={false}
           alwaysShowVerticalScroll={true}
           theme="legacy"
-        />
-      </div>
-    </div>
-  );
-
-  return (
-    <div
-      className="p-6 bg-gradient-to-r from-gray-50 to-gray-100"
-      style={{ width: "100%", minHeight: "200px" }}
-    >
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold text-gray-700">
-          Andamentos do Processo - {processo.numero_sei}
-        </h3>
-        <Button
-          onClick={adicionarAndamento}
-          size="sm"
-          className="bg-blue-600 hover:bg-blue-700 text-white"
-        >
-          + Novo Andamento
-        </Button>
-      </div>
-
-      <div
-        className="ag-theme-alpine"
-        style={{
-          height: `${gridHeight}px`,
-          width: "100%",
-        }}
-      >
-        <AgGridReact
-          ref={gridRef}
-          rowData={andamentos}
-          columnDefs={columnDefs}
-          defaultColDef={defaultColDef}
-          onCellValueChanged={onCellValueChanged}
-          singleClickEdit={true}
-          stopEditingWhenCellsLoseFocus={true}
-          suppressHorizontalScroll={false}
-          alwaysShowVerticalScroll={true}
-          theme="legacy"
+          overlayNoRowsTemplate="Nenhum andamento cadastrado"
         />
       </div>
     </div>
@@ -575,6 +567,7 @@ export default function ProcessosSpreadsheet({
   const gridRef = useRef<AgGridReact>(null);
   const { data: session } = useSession();
   const router = useRouter();
+  const { theme, systemTheme } = useTheme();
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [processosLocal, setProcessosLocal] = useState<IProcesso[]>(processos);
 
@@ -1338,16 +1331,35 @@ export default function ProcessosSpreadsheet({
         </Button>
       </div>
       <div
-        className="ag-theme-alpine w-full"
+        className={`ag-theme-alpine w-full ${
+          theme === "dark" || (theme === "system" && systemTheme === "dark")
+            ? "dark"
+            : ""
+        }`}
         style={
           {
             height: "calc(100vh - 200px)",
             width: "100%",
-            "--ag-header-background-color": "#f8f9fa",
-            "--ag-header-foreground-color": "#212529",
-            "--ag-odd-row-background-color": "#ffffff",
-            "--ag-row-hover-color": "#f1f3f5",
-            "--ag-border-color": "#dee2e6",
+            ...(theme === "dark" ||
+            (theme === "system" && systemTheme === "dark")
+              ? {
+                  "--ag-background-color": "#1a1a1a",
+                  "--ag-header-background-color": "#262626",
+                  "--ag-header-foreground-color": "#e5e7eb",
+                  "--ag-odd-row-background-color": "#1a1a1a",
+                  "--ag-row-hover-color": "#2d2d2d",
+                  "--ag-border-color": "#404040",
+                  "--ag-foreground-color": "#e5e7eb",
+                  "--ag-secondary-foreground-color": "#a3a3a3",
+                  "--ag-cell-horizontal-padding": "12px",
+                }
+              : {
+                  "--ag-header-background-color": "#f8f9fa",
+                  "--ag-header-foreground-color": "#212529",
+                  "--ag-odd-row-background-color": "#ffffff",
+                  "--ag-row-hover-color": "#f1f3f5",
+                  "--ag-border-color": "#dee2e6",
+                }),
             fontSize: "14px",
           } as React.CSSProperties
         }
@@ -1374,6 +1386,7 @@ export default function ProcessosSpreadsheet({
           getRowHeight={getRowHeight}
           getRowStyle={getRowStyle}
           suppressCellFocus={true}
+          overlayNoRowsTemplate="Nenhum processo cadastrado"
         />
       </div>
     </div>
