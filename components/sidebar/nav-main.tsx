@@ -76,11 +76,15 @@ export async function NavMain() {
       titulo: "Interessados",
       url: "/interessados",
     },
-    {
-      icone: FileText,
-      titulo: "Logs",
-      url: "/logs",
-    },
+    ...(usuario?.permissao && usuario.permissao.toString() === "DEV"
+      ? [
+          {
+            icone: FileText,
+            titulo: "Logs",
+            url: "/logs",
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -130,7 +134,7 @@ export async function NavMain() {
                       <span>{item.titulo}</span>
                     </Link>
                   </SidebarMenuItem>
-                )
+                ),
               )}
             </SidebarMenu>
           </>
@@ -182,7 +186,7 @@ export async function NavMain() {
                         <span>{item.titulo}</span>
                       </Link>
                     </SidebarMenuItem>
-                  )
+                  ),
                 )}
               </SidebarMenu>
             </>

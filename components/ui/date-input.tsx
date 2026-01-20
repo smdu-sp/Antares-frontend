@@ -40,10 +40,14 @@ export default function DateInput({
     d ? dayjs(d).format("DD/MM/YYYY") : "";
 
   const [text, setText] = React.useState<string>(formatDisplay(value));
+  const [open, setOpen] = React.useState(false);
+  const [isUserTyping, setIsUserTyping] = React.useState(false);
 
   React.useEffect(() => {
-    setText(formatDisplay(value));
-  }, [value]);
+    if (!isUserTyping) {
+      setText(formatDisplay(value));
+    }
+  }, [value, isUserTyping]);
 
   const parseStrict = (s: string) => {
     const d = dayjs(s, "DD/MM/YYYY", true);
@@ -63,38 +67,58 @@ export default function DateInput({
   };
 
   const handleBlur = () => {
+    setIsUserTyping(false);
+    if (text.trim() === "") {
+      onChange?.(null);
+      return;
+    }
     const parsed = parseStrict(text);
-    if (parsed) onChange?.(parsed);
-    else setText(formatDisplay(value));
+    if (parsed) {
+      onChange?.(parsed);
+    } else {
+      // Se não válido, manter o texto como está, value não muda
+    }
   };
 
   return (
-    <Popover>
-      <div className="relative">
+    <Popover open={open} onOpenChange={setOpen}>
+      <div className="relative w-full h-full">
         <Input
           value={text}
-          onChange={(e) => setText(applyMask(e.target.value))}
+          onChange={(e) => {
+            setText(applyMask(e.target.value));
+            setIsUserTyping(true);
+          }}
+          onFocus={() => setOpen(true)}
           onBlur={handleBlur}
           placeholder={placeholder}
-          className={`${className ?? ""} pr-10`}
+          className={`${className ?? ""} pr-10 h-full text-sm`}
           disabled={disabled}
         />
         <PopoverTrigger asChild>
           <Button
             aria-label="Abrir calendário"
             variant="ghost"
-            className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8"
+            className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6"
             disabled={disabled}
           >
             <CalendarIcon className="h-4 w-4" />
           </Button>
         </PopoverTrigger>
       </div>
-      <PopoverContent className="w-auto p-0" align="start">
+      <PopoverContent
+        className="w-auto p-0"
+        align="start"
+        side="bottom"
+        sideOffset={4}
+      >
         <Calendar
           mode="single"
           selected={value}
-          onSelect={(d: Date) => onChange?.(d)}
+          onSelect={(d: Date) => {
+            onChange?.(d);
+            setOpen(false);
+          }}
           {...calendarProps}
         />
       </PopoverContent>

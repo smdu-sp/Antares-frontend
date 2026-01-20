@@ -14,9 +14,21 @@ import * as interessado from "@/services/interessados";
 import { Loader2, Trash2 } from "lucide-react";
 import { useTransition } from "react";
 import { toast } from "sonner";
+import { useSession } from "next-auth/react";
 
 export default function ModalDelete({ id }: { id: string }) {
   const [isPending, startTransition] = useTransition();
+  const { data: session } = useSession();
+
+  // Verificar se o usuário tem permissão para deletar
+  const canDelete =
+    session?.usuario?.permissao &&
+    ["DEV", "ADM"].includes(session.usuario.permissao.toString());
+
+  // Se não tiver permissão, retornar null (não renderizar o botão)
+  if (!canDelete) {
+    return null;
+  }
 
   async function handleDelete(id: string) {
     const resp = await interessado.server.deletar(id);

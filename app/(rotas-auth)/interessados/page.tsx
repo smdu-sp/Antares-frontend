@@ -44,26 +44,28 @@ async function Interessados({
   }
 
   return (
-    <>
-      <div className="flex flex-row gap-2 items-center justify-between mb-4 lg:mb-0">
-        <h1 className="text-2xl font-bold">Interessados</h1>
-        <ModalUpdateAndCreate />
+    <div className="w-full px-0 md:px-8 relative pb-20 md:pb-14 h-full md:container mx-auto">
+      <h1 className="text-xl md:text-4xl font-bold">Interessados</h1>
+      <div className="flex flex-col max-w-sm mx-auto md:max-w-full gap-3 my-5 w-full">
+        <Filtros
+          camposFiltraveis={[
+            {
+              nome: "Busca",
+              tag: "busca",
+              tipo: 0,
+              placeholder: "Digite o nome do interessado...",
+            },
+          ]}
+        />
+        <DataTable columns={columns} data={dados || []} />
+
+        {dados && dados.length > 0 && (
+          <Pagination total={+total} pagina={+pagina} limite={+limite} />
+        )}
       </div>
-      <Filtros
-        camposFiltraveis={[
-          {
-            nome: "Buscar Interessado",
-            tag: "busca",
-            tipo: 0,
-            placeholder: "Digite o nome do interessado...",
-          },
-        ]}
-        showSearchButton={false}
-        showClearButton={false}
-        autoSearch={true}
-      />
-      <DataTable columns={columns} data={dados} />
-      <Pagination total={+total} pagina={+pagina} limite={+limite} />
-    </>
+      <div className="absolute bottom-10 md:bottom-5 right-2 md:right-8 hover:scale-110">
+        <ModalUpdateAndCreate isUpdating={false} />
+      </div>
+    </div>
   );
 }

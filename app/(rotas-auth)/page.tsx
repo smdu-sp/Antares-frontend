@@ -6,16 +6,22 @@ import { auth } from "@/lib/auth/auth";
 import * as processo from "@/services/processos";
 import * as unidade from "@/services/unidades";
 import * as interessado from "@/services/interessados";
-import { IPaginadoProcesso, IProcesso } from "@/types/processo";
+import * as andamento from "@/services/andamentos";
+import {
+  IPaginadoProcesso,
+  IProcesso,
+  IAndamento,
+  StatusAndamento,
+} from "@/types/processo";
 import { IUnidade } from "@/types/unidade";
 import { IInteressado } from "@/types/interessado";
 import { Suspense } from "react";
-import ModalProcesso from "./processos/_components/modal-processo";
 import { Skeleton } from "@/components/ui/skeleton";
 import FiltroVencendoHoje from "./processos/_components/filtro-vencendo-hoje";
 import FiltroAtrasados from "./processos/_components/filtro-atrasados";
 import FiltroConcluidos from "./processos/_components/filtro-concluidos";
 import ProcessosMetrics from "@/components/processos-metrics";
+import AndamentosMetrics from "@/components/andamentos-metrics";
 import ProcessosSpreadsheet from "@/components/processos-spreadsheet";
 import { BtnLimparFiltros } from "@/components/btn-limpar-filtros";
 
@@ -53,24 +59,33 @@ async function Home({
 }) {
   let { pagina = 1, limite = 100, total = 0 } = await searchParams;
   let ok = false;
-  const { busca = "", vencendoHoje = "", atrasados = "" } = await searchParams;
+  const {
+    busca = "",
+    vencendoHoje = "",
+    atrasados = "",
+    concluidos = "",
+  } = await searchParams;
   let dados: IProcesso[] = [];
   let unidadesLista: IUnidade[] = [];
   let interessadosLista: IInteressado[] = [];
   let totalVencendoHoje = 0;
   let totalAtrasados = 0;
   let totalProcessos = 0;
+  let andamentosEmAndamento = 0;
+  let andamentosVencidos = 0;
+  let andamentosVencendoHoje = 0;
+  let andamentosConcluidos = 0;
 
   const session = await auth();
   if (session && session.access_token) {
-    // Buscar processos paginados (com filtros aplicados)
+    // Buscar TODOS os processos sem filtros do backend (porque os filtros do backend não estão funcionando corretamente)
     const response = await processo.query.buscarTudo(
       session.access_token || "",
-      +pagina,
-      +limite,
+      1,
+      1000, // Buscar muitos processos para filtrar no frontend
       busca as string,
-      vencendoHoje === "true",
-      atrasados === "true"
+      false, // Não usar filtro do backend
+      false, // Não usar filtro do backend
     );
     const { data } = response;
     ok = response.ok;
@@ -86,10 +101,10 @@ async function Home({
         if (dados.length > 0) {
           // Buscar lista de unidades e interessados
           const unidadesResponse = await unidade.listaCompleta(
-            session.access_token
+            session.access_token,
           );
           const interessadosResult = await interessado.query.listaCompleta(
-            session.access_token
+            session.access_token,
           );
 
           let unidadesMap = new Map<string, IUnidade>();
@@ -117,7 +132,7 @@ async function Home({
               } else {
                 proc.interessado = `Interessado não encontrado (ID: ${proc.interessado_id.substring(
                   0,
-                  8
+                  8,
                 )}...)`;
               }
             }
@@ -131,12 +146,51 @@ async function Home({
                 // Unidade não encontrada - pode estar inativa ou deletada
                 proc.unidade_remetente = `Unidade não encontrada (ID: ${proc.unidade_remetente_id.substring(
                   0,
-                  8
+                  8,
                 )}...)`;
               }
             }
             return proc;
           });
+
+          // Aplicar filtros client-side (porque o backend não está filtrando corretamente)
+          const hoje = new Date();
+          hoje.setHours(0, 0, 0, 0);
+
+          if (vencendoHoje === "true") {
+            dados = dados.filter((p: any) => {
+              if (!p.prazo) return false;
+              const prazo = new Date(p.prazo);
+              prazo.setHours(0, 0, 0, 0);
+              return prazo.getTime() === hoje.getTime();
+            });
+          }
+
+          if (atrasados === "true") {
+            dados = dados.filter((p: any) => {
+              if (!p.prazo) return false;
+              const prazo = new Date(p.prazo);
+              prazo.setHours(0, 0, 0, 0);
+              return prazo.getTime() < hoje.getTime();
+            });
+          }
+
+          if (concluidos === "true") {
+            dados = dados.filter((p: any) => {
+              // Um processo é considerado concluído se:
+              // 1. Tem resposta final (data_resposta_final existe), OU
+              // 2. Todos os andamentos estão com status CONCLUIDO
+              if (p.data_resposta_final || p.resposta_final) {
+                return true;
+              }
+
+              if (p.andamentos && p.andamentos.length > 0) {
+                return p.andamentos.every((a: any) => a.status === "CONCLUIDO");
+              }
+
+              return false;
+            });
+          }
         }
       }
     }
@@ -148,7 +202,7 @@ async function Home({
       1, // Busca apenas 1 item, só precisamos do total
       "", // Sem busca
       false, // Sem filtro vencendo hoje
-      false // Sem filtro atrasados
+      false, // Sem filtro atrasados
     );
 
     if (totalGeralResponse.ok && totalGeralResponse.data) {
@@ -168,68 +222,115 @@ async function Home({
     if (atrasadosRes.ok && atrasadosRes.data !== null) {
       totalAtrasados = atrasadosRes.data;
     }
+
+    // Buscar andamentos para calcular métricas
+    const andamentosResponse = await andamento.query.buscarTudo(
+      session.access_token,
+      1,
+      1000,
+    );
+
+    if (andamentosResponse.ok && andamentosResponse.data) {
+      const andamentosPaginados = andamentosResponse.data as any;
+      const andamentosLista = andamentosPaginados.data || [];
+      const hoje = new Date();
+      hoje.setHours(0, 0, 0, 0);
+
+      andamentosLista.forEach((a: IAndamento) => {
+        if (a.status === StatusAndamento.CONCLUIDO) {
+          andamentosConcluidos++;
+        } else {
+          // Verificar prazo
+          const prazo = new Date(a.prazo);
+          prazo.setHours(0, 0, 0, 0);
+          const diffDays = Math.ceil(
+            (prazo.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24),
+          );
+
+          if (diffDays < 0) {
+            andamentosVencidos++;
+          } else if (diffDays === 0) {
+            andamentosVencendoHoje++;
+          } else {
+            andamentosEmAndamento++;
+          }
+        }
+      });
+    }
   }
 
   // Calcular "Em Andamento" = Total - Atrasados (sempre valores reais)
   const emAndamentoCount = Math.max(0, totalProcessos - totalAtrasados);
 
   return (
-    <div className="w-full px-0 md:px-8 relative pb-20 md:pb-14 h-full md:container mx-auto">
-      {/* Header com Título e Botão */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <h1 className="text-2xl md:text-4xl font-bold">Processos</h1>
-        <ModalProcesso isUpdating={false} showText={true} />
-      </div>
+    <div className="w-full flex justify-center relative pb-20 md:pb-14 h-full">
+      <div className="w-[95%] px-4">
+        {/* Header com Título */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 mt-6">
+          <h1 className="text-1xl md:text-3xl font-bold">Processos</h1>
+        </div>
 
-      {/* Métricas */}
-      <ProcessosMetrics
-        total={totalProcessos}
-        vencendoHoje={totalVencendoHoje}
-        atrasados={totalAtrasados}
-        emAndamento={emAndamentoCount}
-      />
-
-      <div className="flex flex-col max-w-sm mx-auto md:max-w-full gap-4 my-5 w-full">
-        {/* Barra de Busca com Auto-Search */}
-        <Filtros
-          camposFiltraveis={[
-            {
-              nome: "Buscar Processo",
-              tag: "busca",
-              tipo: 0,
-              placeholder: "Digite o número SEI ou assunto do processo...",
-            },
-            {
-              nome: "Interessado",
-              tag: "interessado",
-              tipo: 0,
-              placeholder: "Filtrar por interessado...",
-            },
-            {
-              nome: "Unidade de Origem",
-              tag: "origem",
-              tipo: 0,
-              placeholder: "Filtrar por unidade de origem...",
-            },
-          ]}
-          showSearchButton={false}
-          showClearButton={false}
-          autoSearch={true}
-          debounceMs={600}
-          clearOtherFiltersOnSearch={false}
+        {/* Métricas de Processos */}
+        <ProcessosMetrics
+          total={totalProcessos}
+          vencendoHoje={totalVencendoHoje}
+          atrasados={totalAtrasados}
+          emAndamento={emAndamentoCount}
+        />
+        {/* Header com Título */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 mt-6">
+          <h1 className="text-1xl md:text-3xl font-bold">Andamentos</h1>
+        </div>
+        {/* Métricas de Andamentos */}
+        <AndamentosMetrics
+          emAndamento={andamentosEmAndamento}
+          vencidos={andamentosVencidos}
+          vencendoHoje={andamentosVencendoHoje}
+          concluidos={andamentosConcluidos}
         />
 
-        {/* Filtros Rápidos com Botão Limpar */}
-        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center flex-wrap">
-          <span className="text-sm font-medium text-muted-foreground">
-            Filtros rápidos:
-          </span>
-          <div className="flex flex-wrap gap-2 flex-1">
-            <FiltroVencendoHoje />
-            <FiltroAtrasados />
-            <FiltroConcluidos />
+        <div className="flex flex-col gap-4 my-5 w-full">
+          {/* Barra de Busca com Auto-Search */}
+          <Filtros
+            camposFiltraveis={[
+              {
+                nome: "Buscar Processo",
+                tag: "busca",
+                tipo: 0,
+                placeholder: "Digite o número SEI ou assunto do processo...",
+              },
+              {
+                nome: "Interessado",
+                tag: "interessado",
+                tipo: 0,
+                placeholder: "Filtrar por interessado...",
+              },
+              {
+                nome: "Unidade de Origem",
+                tag: "origem",
+                tipo: 0,
+                placeholder: "Filtrar por unidade de origem...",
+              },
+            ]}
+            showSearchButton={false}
+            showClearButton={false}
+            autoSearch={true}
+            debounceMs={600}
+            clearOtherFiltersOnSearch={false}
+          />
+
+          {/* Filtros Rápidos com Botão Limpar */}
+          <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center flex-wrap">
+            <span className="text-sm font-medium text-muted-foreground">
+              Filtros rápidos:
+            </span>
+            <div className="flex flex-wrap gap-2 flex-1">
+              <FiltroVencendoHoje />
+              <FiltroAtrasados />
+              <FiltroConcluidos />
+            </div>
+            <BtnLimparFiltros />
           </div>
-          <BtnLimparFiltros />
         </div>
 
         {/* Visualização de Processos */}

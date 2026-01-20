@@ -31,20 +31,19 @@ import { CalendarIcon, Loader2 } from "lucide-react";
 import DateInput from "@/components/ui/date-input";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { MultiSelect } from "@/components/multi-select";
 import { IUnidade } from "@/types/unidade";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
 const formSchema = z.object({
-  destinos: z
-    .array(z.string())
-    .min(1, "Selecione ao menos uma unidade de destino"),
+  destino: z.string().min(1, "Destino é obrigatório"),
   data_envio: z.date({
     required_error: "Data de envio é obrigatória",
   }),
-  prazo: z.string().min(1, "Prazo é obrigatório"),
+  prazo: z.date({
+    required_error: "Prazo é obrigatório",
+  }),
 });
 
 export default function FormAndamento({
@@ -65,9 +64,9 @@ export default function FormAndamento({
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      destinos: [],
+      destino: "",
       data_envio: new Date(), // Pré-preenchido com data atual
-      prazo: "",
+      prazo: undefined,
     },
   });
 
@@ -86,47 +85,28 @@ export default function FormAndamento({
   async function onSubmit(data: z.infer<typeof formSchema>) {
     startTransition(async () => {
       // Converte as datas para ISO string
-      const prazoISO = data.prazo
-        ? new Date(data.prazo + "T00:00:00").toISOString()
-        : "";
+      const prazoISO = data.prazo ? data.prazo.toISOString() : "";
 
       const dataEnvioISO = data.data_envio
         ? data.data_envio.toISOString()
         : new Date().toISOString();
 
-      // Criar andamentos para cada destino selecionado
-      const promises = data.destinos.map((destinoId) => {
-        const unidadeDestino = unidades.find((u) => u.id === destinoId);
-        return andamento.server.criar({
-          processo_id: processoId,
-          origem: processoOrigem,
-          destino: unidadeDestino?.sigla || destinoId,
-          data_envio: dataEnvioISO,
-          prazo: prazoISO,
-        } as ICreateAndamento);
-      });
+      // Criar andamento
+      const unidadeDestino = unidades.find((u) => u.id === data.destino);
+      const result = await andamento.server.criar({
+        processo_id: processoId,
+        origem: processoOrigem,
+        destino: unidadeDestino?.sigla || data.destino,
+        data_envio: dataEnvioISO,
+        prazo: prazoISO,
+      } as ICreateAndamento);
 
-      const results = await Promise.all(promises);
-      const failed = results.filter((r) => !r.ok);
-
-      if (failed.length > 0) {
-        if (failed.length === results.length) {
-          toast.error("Erro", {
-            description: "Não foi possível criar os andamentos",
-          });
-        } else {
-          toast.warning("Atenção", {
-            description: `${
-              results.length - failed.length
-            } andamento(s) criado(s), ${failed.length} falhou(am)`,
-          });
-        }
+      if (!result.ok) {
+        toast.error("Erro", {
+          description: "Não foi possível criar o andamento",
+        });
       } else {
-        toast.success(
-          data.destinos.length === 1
-            ? "Andamento criado com sucesso"
-            : `${data.destinos.length} andamentos criados com sucesso`
-        );
+        toast.success("Andamento criado com sucesso");
         form.reset();
         router.refresh();
         onSuccess?.();
@@ -139,10 +119,10 @@ export default function FormAndamento({
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <FormField
           control={form.control}
-          name="destinos"
+          name="destino"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Unidades de Destino</FormLabel>
+              <FormLabel>Unidade de Destino</FormLabel>
               <FormControl>
                 {loadingUnidades ? (
                   <div className="flex items-center justify-center py-2">
@@ -152,17 +132,17 @@ export default function FormAndamento({
                     </span>
                   </div>
                 ) : (
-                  <MultiSelect
-                    options={unidades.map((u) => ({
-                      label: `${u.sigla} - ${u.nome}`,
-                      value: u.id,
-                    }))}
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                    placeholder="Selecione uma ou mais unidades"
-                    variant="inverted"
-                    maxCount={3}
-                  />
+                  <select
+                    {...field}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <option value="">Selecione uma unidade</option>
+                    {unidades.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.sigla} - {u.nome}
+                      </option>
+                    ))}
+                  </select>
                 )}
               </FormControl>
               <FormMessage />
@@ -200,17 +180,8 @@ export default function FormAndamento({
               <FormLabel>Prazo (Data Limite)</FormLabel>
               <FormControl>
                 <DateInput
-                  value={
-                    field.value ? new Date(field.value + "T00:00:00") : null
-                  }
-                  onChange={(d) => {
-                    if (d) {
-                      const y = d.getFullYear();
-                      const m = String(d.getMonth() + 1).padStart(2, "0");
-                      const day = String(d.getDate()).padStart(2, "0");
-                      field.onChange(`${y}-${m}-${day}`);
-                    }
-                  }}
+                  value={field.value ?? null}
+                  onChange={(d) => field.onChange(d ?? undefined)}
                   placeholder="DD/MM/AAAA"
                 />
               </FormControl>

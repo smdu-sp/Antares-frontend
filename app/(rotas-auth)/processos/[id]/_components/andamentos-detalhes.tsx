@@ -51,6 +51,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Collapsible,
   CollapsibleContent,
@@ -450,67 +451,78 @@ export default function AndamentosDetalhes({
               ? "Andamento Atual"
               : `Andamentos em Andamento (${andamentosEmAndamento.length})`}
           </h3>
-          {andamentosEmAndamento.map((andamento) => (
-            <Card key={andamento.id} className="border-l-4 border-l-blue-500">
-              {/* Checkbox para seleção múltipla */}
-              {isSelectionMode && (
-                <div className="p-4 pb-0">
-                  <Checkbox
-                    checked={selectedAndamentos.has(andamento.id)}
-                    onCheckedChange={() =>
-                      toggleAndamentoSelection(andamento.id)
-                    }
-                    className="mb-2"
-                  />
-                </div>
-              )}
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <CardTitle className="text-xl">
-                      {andamento.origem} → {andamento.destino}
-                    </CardTitle>
-                    <CardDescription>Processo em tramitação</CardDescription>
-                  </div>
-                  <div className="flex gap-2">
-                    <ModalAdicionarObservacao
-                      processoId={processo.id}
-                      onSuccess={refreshFn}
-                    />
-                    <ModalProrrogarAndamento
-                      andamento={andamento}
-                      onSuccess={refreshFn}
-                    />
-                    <ModalResponderAndamento
-                      andamento={andamento}
-                      processoId={processo.id}
-                      onSuccess={refreshFn}
-                    />
-                    <ModalEditAndamento
-                      andamento={andamento}
-                      onSuccess={refreshFn}
-                    />
-                    {session?.usuario?.permissao &&
-                      ["DEV", "ADM", "TEC"].includes(
-                        session.usuario.permissao.toString()
-                      ) && (
-                        <ModalDeleteAndamento
+          <ScrollArea
+            className={andamentosEmAndamento.length > 3 ? "h-96" : ""}
+          >
+            <div className="space-y-4 pr-4">
+              {andamentosEmAndamento.map((andamento) => (
+                <Card
+                  key={andamento.id}
+                  className="border-l-4 border-l-blue-500"
+                >
+                  {/* Checkbox para seleção múltipla */}
+                  {isSelectionMode && (
+                    <div className="p-4 pb-0">
+                      <Checkbox
+                        checked={selectedAndamentos.has(andamento.id)}
+                        onCheckedChange={() =>
+                          toggleAndamentoSelection(andamento.id)
+                        }
+                        className="mb-2"
+                      />
+                    </div>
+                  )}
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <CardTitle className="text-xl">
+                          {andamento.origem} → {andamento.destino}
+                        </CardTitle>
+                        <CardDescription>
+                          Processo em tramitação
+                        </CardDescription>
+                      </div>
+                      <div className="flex gap-2">
+                        <ModalAdicionarObservacao
+                          processoId={processo.id}
+                          onSuccess={refreshFn}
+                        />
+                        <ModalProrrogarAndamento
                           andamento={andamento}
                           onSuccess={refreshFn}
                         />
-                      )}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <AndamentoCard
-                  andamento={andamento}
-                  processoId={processo.id}
-                  onRefresh={refreshFn}
-                />
-              </CardContent>
-            </Card>
-          ))}
+                        <ModalResponderAndamento
+                          andamento={andamento}
+                          processoId={processo.id}
+                          onSuccess={refreshFn}
+                        />
+                        <ModalEditAndamento
+                          andamento={andamento}
+                          onSuccess={refreshFn}
+                        />
+                        {session?.usuario?.permissao &&
+                          ["DEV", "ADM", "TEC"].includes(
+                            session.usuario.permissao.toString()
+                          ) && (
+                            <ModalDeleteAndamento
+                              andamento={andamento}
+                              onSuccess={refreshFn}
+                            />
+                          )}
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <AndamentoCard
+                      andamento={andamento}
+                      processoId={processo.id}
+                      onRefresh={refreshFn}
+                    />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </ScrollArea>
         </div>
       )}
 

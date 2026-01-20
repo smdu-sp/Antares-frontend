@@ -29,6 +29,7 @@ export interface IAndamento {
   prorrogacao?: Date | null;
   conclusao?: Date | null;
   status: StatusAndamento;
+  data_resposta?: Date | null;
   observacao?: string | null;
   criadoEm: Date;
   atualizadoEm: Date;
@@ -53,6 +54,8 @@ export interface IProcesso {
   origem?: string;
   data_recebimento?: Date;
   prazo?: Date;
+  data_resposta_final?: Date | null;
+  resposta_final?: string | null;
   criadoEm: Date;
   atualizadoEm: Date;
   andamentos?: IAndamento[];
@@ -74,6 +77,9 @@ export interface IUpdateProcesso {
   unidade_remetente_id?: string;
   origem?: string;
   data_recebimento?: string;
+  prazo?: string;
+  data_resposta_final?: string;
+  resposta_final?: string;
 }
 
 export interface ICreateAndamento {
@@ -83,6 +89,7 @@ export interface ICreateAndamento {
   data_envio?: string;
   prazo: string;
   status?: StatusAndamento;
+  resposta?: string;
   observacao?: string;
 }
 
@@ -94,6 +101,7 @@ export interface IUpdateAndamento {
   prorrogacao?: string;
   conclusao?: string;
   status?: StatusAndamento;
+  resposta?: string;
   observacao?: string;
 }
 

@@ -16,6 +16,7 @@ import {
   getStatusPrazo,
 } from "./utils";
 import { cn } from "@/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function ProcessoRow({ processo }: { processo: IProcesso }) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -25,7 +26,7 @@ export default function ProcessoRow({ processo }: { processo: IProcesso }) {
   const diasRestantes = ultimoAndamento
     ? calcularDiasRestantes(
         new Date(ultimoAndamento.prazo),
-        ultimoAndamento.prorrogacao
+        ultimoAndamento.prorrogacao,
       )
     : null;
   const statusPrazo =
@@ -71,7 +72,7 @@ export default function ProcessoRow({ processo }: { processo: IProcesso }) {
                       day: "2-digit",
                       month: "2-digit",
                       year: "numeric",
-                    }
+                    },
                   )}
                 </div>
               )}
@@ -86,7 +87,7 @@ export default function ProcessoRow({ processo }: { processo: IProcesso }) {
               className={cn(
                 "flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium w-fit",
                 statusPrazo.bg,
-                statusPrazo.cor
+                statusPrazo.cor,
               )}
             >
               {statusPrazo.icone && <statusPrazo.icone className="h-3 w-3" />}
@@ -105,18 +106,92 @@ export default function ProcessoRow({ processo }: { processo: IProcesso }) {
       </TableRow>
       {isExpanded && (
         <TableRow>
-          <TableCell colSpan={6} className="bg-muted/50">
-            <div className="p-4 space-y-4">
-              <div className="flex justify-between items-center">
-                <h3 className="font-semibold">Andamentos</h3>
-                <ModalAndamento
-                  processoId={processo.id}
-                  processoOrigem={processo.origem || ""}
-                  onSuccess={() => {
-                    refreshAndamentosRef.current?.();
-                  }}
-                />
+          <TableCell colSpan={6} className="p-0 bg-muted/50">
+            <div className="w-full">
+              <div className="p-4 space-y-3">
+                <div className="flex justify-between items-center">
+                  <h3 className="font-semibold">
+                    Andamentos ({processo.andamentos?.length || 0})
+                  </h3>
+                  <ModalAndamento
+                    processoId={processo.id}
+                    processoOrigem={processo.origem || ""}
+                    onSuccess={() => {
+                      refreshAndamentosRef.current?.();
+                    }}
+                  />
+                </div>
               </div>
+
+              {/* Tabela de Andamentos com ScrollArea */}
+              {processo.andamentos && processo.andamentos.length > 0 ? (
+                <ScrollArea className="w-full h-96 border-t">
+                  <div className="w-full">
+                    <table className="w-full text-sm">
+                      <thead className="sticky top-0 bg-muted/80 border-b">
+                        <tr>
+                          <th className="text-left p-3 font-semibold w-32">
+                            Origem
+                          </th>
+                          <th className="text-left p-3 font-semibold w-32">
+                            Destino
+                          </th>
+                          <th className="text-left p-3 font-semibold w-28">
+                            Status
+                          </th>
+                          <th className="text-left p-3 font-semibold w-28">
+                            Prazo
+                          </th>
+                          <th className="text-left p-3 font-semibold">
+                            Observações
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {processo.andamentos.map((andamento, idx) => (
+                          <tr
+                            key={andamento.id}
+                            className={cn(
+                              "border-b hover:bg-blue-50/50 transition-colors",
+                              idx % 2 === 0 ? "bg-white" : "bg-blue-50/30",
+                            )}
+                          >
+                            <td className="p-3 text-xs">
+                              <span className="font-medium">
+                                {andamento.origem}
+                              </span>
+                            </td>
+                            <td className="p-3 text-xs">
+                              <span className="font-medium">
+                                {andamento.destino}
+                              </span>
+                            </td>
+                            <td className="p-3 text-xs">
+                              <span className="inline-block px-2 py-1 bg-blue-100 text-blue-700 rounded-sm font-medium">
+                                {andamento.status}
+                              </span>
+                            </td>
+                            <td className="p-3 text-xs">
+                              {andamento.prazo
+                                ? new Date(andamento.prazo).toLocaleDateString(
+                                    "pt-BR",
+                                  )
+                                : "-"}
+                            </td>
+                            <td className="p-3 text-xs text-muted-foreground max-w-xs truncate">
+                              {andamento.observacao || "-"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </ScrollArea>
+              ) : (
+                <div className="text-center text-muted-foreground text-sm py-8 border-t">
+                  Nenhum andamento registrado
+                </div>
+              )}
             </div>
           </TableCell>
         </TableRow>
