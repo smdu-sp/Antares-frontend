@@ -41,6 +41,7 @@ import DateCellEditor from "@/components/date-cell-editor";
 import ModalDeleteProcesso from "@/app/(rotas-auth)/processos/_components/modal-delete-processo";
 import ModalDeleteAndamento from "@/app/(rotas-auth)/processos/_components/modal-delete-andamento";
 import InteressadoAutocompleteCellEditor from "@/components/interessado-autocomplete-cell-editor";
+import UnidadeAutocompleteEditor from "@/components/unidade-autocomplete-editor";
 
 // Registrar todos os módulos da comunidade AG-Grid
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -291,10 +292,7 @@ function AndamentosDetail({
         field: "origem",
         headerName: "Origem",
         editable: true,
-        cellEditor: "agSelectCellEditor",
-        cellEditorParams: {
-          values: unidades.map((u) => `${u.sigla} - ${u.nome}`),
-        },
+        cellEditor: UnidadeAutocompleteEditor,
         valueSetter: (params) => {
           params.data.origem = params.newValue;
           return true;
@@ -305,10 +303,7 @@ function AndamentosDetail({
         field: "destino",
         headerName: "Destino",
         editable: true,
-        cellEditor: "agSelectCellEditor",
-        cellEditorParams: {
-          values: unidades.map((u) => `${u.sigla} - ${u.nome}`),
-        },
+        cellEditor: UnidadeAutocompleteEditor,
         valueSetter: (params) => {
           params.data.destino = params.newValue;
           return true;
@@ -518,6 +513,8 @@ function AndamentosDetail({
           {
             height: `${gridHeight}px`,
             width: "100%",
+            overflowX: "auto",
+            overflowY: "auto",
             ...(theme === "dark" ||
             (theme === "system" && systemTheme === "dark")
               ? {
@@ -546,6 +543,10 @@ function AndamentosDetail({
           suppressHorizontalScroll={false}
           alwaysShowVerticalScroll={true}
           theme="legacy"
+          // Passar dados dinâmicos para os cell editors
+          context={{
+            unidades: unidades,
+          }}
           overlayNoRowsTemplate="Nenhum andamento cadastrado"
         />
       </div>
@@ -604,6 +605,12 @@ export default function ProcessosSpreadsheet({
       }
     });
   }, [processosLocal]);
+
+  // Debug: verificar se os dados estão chegando
+  useEffect(() => {
+    console.log("ProcessosSpreadsheet - unidades:", unidades);
+    console.log("ProcessosSpreadsheet - interessados:", interessados);
+  }, [unidades, interessados]);
 
   const unidadesOptions = useMemo(
     () => unidades.map((u) => `${u.sigla} - ${u.nome}`),
@@ -707,7 +714,7 @@ export default function ProcessosSpreadsheet({
           field: "assunto",
           headerName: "Assunto",
           editable: true,
-          flex: 2,
+          width: 250,
           valueFormatter: (params: any) => {
             const value = params.value || "";
             return value.length > 80 ? value.substring(0, 80) + "..." : value;
@@ -724,13 +731,6 @@ export default function ProcessosSpreadsheet({
           headerName: "Interessado",
           editable: true,
           cellEditor: InteressadoAutocompleteCellEditor,
-          cellEditorParams: {
-            interessados: interessados,
-            onSave: (valor: string, id: string) => {
-              // Este callback será chamado pelo editor
-              return { valor, id };
-            },
-          },
           valueGetter: (params: any) => {
             if (params.data?._isDetail) return "";
             const processo = params.data as IProcesso;
@@ -774,16 +774,13 @@ export default function ProcessosSpreadsheet({
             }
             return false;
           },
-          flex: 1,
+          width: 200,
         },
         {
           field: "unidadeRemetente",
           headerName: "Unidade Remetente",
           editable: true,
-          cellEditor: "agSelectCellEditor",
-          cellEditorParams: {
-            values: unidadesOptions,
-          },
+          cellEditor: UnidadeAutocompleteEditor,
           valueGetter: (params: any) => {
             if (params.data?._isDetail) return "";
             const processo = params.data as IProcesso;
@@ -803,13 +800,24 @@ export default function ProcessosSpreadsheet({
             }
             return false;
           },
-          flex: 1,
+          width: 200,
         },
         {
           field: "origem",
           headerName: "Origem",
           editable: true,
-          flex: 1,
+          cellEditor: UnidadeAutocompleteEditor,
+          valueSetter: (params) => {
+            const selected = params.newValue as string;
+            const sigla = selected?.split(" - ")[0];
+            const unidade = unidades.find((u) => u.sigla === sigla);
+            if (unidade) {
+              params.data.origem = unidade.sigla;
+              return true;
+            }
+            return false;
+          },
+          width: 150,
         },
         {
           field: "data_recebimento",
@@ -832,7 +840,30 @@ export default function ProcessosSpreadsheet({
               locale: ptBR,
             });
           },
-          flex: 1,
+          width: 160,
+        },
+        {
+          field: "data_envio_unidade",
+          headerName: "Data Envio para Unidade",
+          editable: true,
+          cellEditor: DateCellEditor,
+          valueGetter: (params: any) => {
+            if (!params.data?.data_envio_unidade) return null;
+            return new Date(params.data.data_envio_unidade);
+          },
+          valueSetter: (params: any) => {
+            params.data.data_envio_unidade = params.newValue
+              ? params.newValue.toISOString()
+              : null;
+            return true;
+          },
+          valueFormatter: (params: any) => {
+            if (!params.value) return "";
+            return format(params.value, "dd/MM/yyyy", {
+              locale: ptBR,
+            });
+          },
+          width: 200,
         },
         {
           field: "prazo",
@@ -879,7 +910,7 @@ export default function ProcessosSpreadsheet({
             }
             return { backgroundColor: "transparent", color: "inherit" };
           },
-          flex: 1,
+          width: 120,
         },
         {
           field: "data_resposta_final",
@@ -902,13 +933,13 @@ export default function ProcessosSpreadsheet({
               locale: ptBR,
             });
           },
-          flex: 1,
+          width: 180,
         },
         {
           field: "resposta_final",
           headerName: "Resposta Final",
           editable: true,
-          flex: 2,
+          width: 300,
           wrapText: true,
           autoHeight: true,
         },
@@ -1148,6 +1179,7 @@ export default function ProcessosSpreadsheet({
         } else if (
           field === "data_recebimento" ||
           field === "prazo" ||
+          field === "data_envio_unidade" ||
           field === "data_resposta_final"
         ) {
           dataToUpdate[field] = newValue ? convertDateField(newValue) : null;
@@ -1340,6 +1372,8 @@ export default function ProcessosSpreadsheet({
           {
             height: "calc(100vh - 200px)",
             width: "100%",
+            overflowX: "auto",
+            overflowY: "auto",
             ...(theme === "dark" ||
             (theme === "system" && systemTheme === "dark")
               ? {
@@ -1377,9 +1411,15 @@ export default function ProcessosSpreadsheet({
           stopEditingWhenCellsLoseFocus={true}
           pagination={false}
           suppressPaginationPanel={true}
+          suppressHorizontalScroll={false}
           rowBuffer={10}
           debounceVerticalScrollbar={true}
           theme="legacy"
+          // Passar dados dinâmicos para os cell editors
+          context={{
+            unidades: unidades,
+            interessados: interessados,
+          }}
           // Configurações para linhas expansíveis (Full Width Rows)
           isFullWidthRow={isFullWidthRow}
           fullWidthCellRenderer={fullWidthCellRenderer}

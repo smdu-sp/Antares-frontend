@@ -100,109 +100,115 @@ async function Home({
         // Filtrar apenas processos ativos (soft delete)
         dados = dados.filter((p) => p.ativo === true);
 
-        // Enriquecer dados com informações das unidades e interessados
-        if (dados.length > 0) {
-          // Buscar lista de unidades e interessados
-          const unidadesResponse = await unidade.listaCompleta(
-            session.access_token,
-          );
-          const interessadosResult = await interessado.query.listaCompleta(
-            session.access_token,
-          );
+        console.log("dados.length:", dados.length, "dados:", dados);
+      }
+    }
 
-          let unidadesMap = new Map<string, IUnidade>();
-          if (unidadesResponse.ok && unidadesResponse.data) {
-            const unidades = unidadesResponse.data as IUnidade[];
-            unidadesLista = unidades; // Armazenar para uso no spreadsheet
-            unidadesMap = new Map(unidades.map((u) => [u.id, u]));
-          }
+    // IMPORTANTE: Carregar unidades e interessados SEMPRE, independente de haver processos
+    // Pois são necessários para os editores autocomplete funcionarem na grid
+    const unidadesResponse = await unidade.listaCompleta(session.access_token);
+    const interessadosResult = await interessado.query.listaCompleta(
+      session.access_token,
+    );
 
-          let interessadosMap = new Map<string, IInteressado>();
-          if (interessadosResult && Array.isArray(interessadosResult)) {
-            interessadosLista = interessadosResult;
-            interessadosMap = new Map(interessadosResult.map((i) => [i.id, i]));
-          }
+    console.log("unidadesResponse:", unidadesResponse);
+    console.log("interessadosResult:", interessadosResult);
 
-          // Enriquecer processos com dados de interessados e unidades
-          dados = dados.map((p) => {
-            const proc = p as any;
+    let unidadesMap = new Map<string, IUnidade>();
+    if (unidadesResponse.ok && unidadesResponse.data) {
+      const unidades = unidadesResponse.data as IUnidade[];
+      unidadesLista = unidades; // Armazenar para uso no spreadsheet
+      unidadesMap = new Map(unidades.map((u) => [u.id, u]));
+    }
 
-            // Processar interessado se tiver interessado_id
-            if (proc.interessado_id) {
-              const interessadoObj = interessadosMap.get(proc.interessado_id);
-              if (interessadoObj) {
-                proc.interessado = interessadoObj.valor;
-              } else {
-                proc.interessado = `Interessado não encontrado (ID: ${proc.interessado_id.substring(
-                  0,
-                  8,
-                )}...)`;
-              }
-            }
+    let interessadosMap = new Map<string, IInteressado>();
+    if (interessadosResult && Array.isArray(interessadosResult)) {
+      interessadosLista = interessadosResult;
+      interessadosMap = new Map(interessadosResult.map((i) => [i.id, i]));
+    }
 
-            // Processar unidade remetente
-            if (proc.unidade_remetente_id) {
-              const unidadeRem = unidadesMap.get(proc.unidade_remetente_id);
-              if (unidadeRem) {
-                proc.unidadeRemetente = unidadeRem;
-              } else {
-                // Unidade não encontrada - pode estar inativa ou deletada
-                proc.unidade_remetente = `Unidade não encontrada (ID: ${proc.unidade_remetente_id.substring(
-                  0,
-                  8,
-                )}...)`;
-              }
-            }
+    console.log("After mapping - unidadesLista:", unidadesLista);
+    console.log("After mapping - interessadosLista:", interessadosLista);
 
-            // Filtrar apenas andamentos ativos (soft delete)
-            if (proc.andamentos && Array.isArray(proc.andamentos)) {
-              proc.andamentos = proc.andamentos.filter(
-                (a: IAndamento) => a.ativo === true,
-              );
-            }
+    // Enriquecer processos com dados de interessados e unidades (se houver processos)
+    if (dados.length > 0) {
+      dados = dados.map((p) => {
+        const proc = p as any;
 
-            return proc;
-          });
-
-          // Aplicar filtros client-side (porque o backend não está filtrando corretamente)
-          const hoje = new Date();
-          hoje.setHours(0, 0, 0, 0);
-
-          if (vencendoHoje === "true") {
-            dados = dados.filter((p: any) => {
-              if (!p.prazo) return false;
-              const prazo = new Date(p.prazo);
-              prazo.setHours(0, 0, 0, 0);
-              return prazo.getTime() === hoje.getTime();
-            });
-          }
-
-          if (atrasados === "true") {
-            dados = dados.filter((p: any) => {
-              if (!p.prazo) return false;
-              const prazo = new Date(p.prazo);
-              prazo.setHours(0, 0, 0, 0);
-              return prazo.getTime() < hoje.getTime();
-            });
-          }
-
-          if (concluidos === "true") {
-            dados = dados.filter((p: any) => {
-              // Um processo é considerado concluído se:
-              // 1. Tem resposta final (data_resposta_final existe), OU
-              // 2. Todos os andamentos estão com status CONCLUIDO
-              if (p.data_resposta_final || p.resposta_final) {
-                return true;
-              }
-
-              if (p.andamentos && p.andamentos.length > 0) {
-                return p.andamentos.every((a: any) => a.status === "CONCLUIDO");
-              }
-
-              return false;
-            });
+        // Processar interessado se tiver interessado_id
+        if (proc.interessado_id) {
+          const interessadoObj = interessadosMap.get(proc.interessado_id);
+          if (interessadoObj) {
+            proc.interessado = interessadoObj.valor;
+          } else {
+            proc.interessado = `Interessado não encontrado (ID: ${proc.interessado_id.substring(
+              0,
+              8,
+            )}...)`;
           }
         }
+
+        // Processar unidade remetente
+        if (proc.unidade_remetente_id) {
+          const unidadeRem = unidadesMap.get(proc.unidade_remetente_id);
+          if (unidadeRem) {
+            proc.unidadeRemetente = unidadeRem;
+          } else {
+            // Unidade não encontrada - pode estar inativa ou deletada
+            proc.unidade_remetente = `Unidade não encontrada (ID: ${proc.unidade_remetente_id.substring(
+              0,
+              8,
+            )}...)`;
+          }
+        }
+
+        // Filtrar apenas andamentos ativos (soft delete)
+        if (proc.andamentos && Array.isArray(proc.andamentos)) {
+          proc.andamentos = proc.andamentos.filter(
+            (a: IAndamento) => a.ativo === true,
+          );
+        }
+
+        return proc;
+      });
+
+      // Aplicar filtros client-side (porque o backend não está filtrando corretamente)
+      const hoje = new Date();
+      hoje.setHours(0, 0, 0, 0);
+
+      if (vencendoHoje === "true") {
+        dados = dados.filter((p: any) => {
+          if (!p.prazo) return false;
+          const prazo = new Date(p.prazo);
+          prazo.setHours(0, 0, 0, 0);
+          return prazo.getTime() === hoje.getTime();
+        });
+      }
+
+      if (atrasados === "true") {
+        dados = dados.filter((p: any) => {
+          if (!p.prazo) return false;
+          const prazo = new Date(p.prazo);
+          prazo.setHours(0, 0, 0, 0);
+          return prazo.getTime() < hoje.getTime();
+        });
+      }
+
+      if (concluidos === "true") {
+        dados = dados.filter((p: any) => {
+          // Um processo é considerado concluído se:
+          // 1. Tem resposta final (data_resposta_final existe), OU
+          // 2. Todos os andamentos estão com status CONCLUIDO
+          if (p.data_resposta_final || p.resposta_final) {
+            return true;
+          }
+
+          if (p.andamentos && p.andamentos.length > 0) {
+            return p.andamentos.every((a: any) => a.status === "CONCLUIDO");
+          }
+
+          return false;
+        });
       }
     }
 
@@ -274,6 +280,18 @@ async function Home({
 
   // Calcular "Em Andamento" = Total - Atrasados (sempre valores reais)
   const emAndamentoCount = Math.max(0, totalProcessos - totalAtrasados);
+
+  // Debug
+  console.log(
+    "Home page rendered - unidadesLista:",
+    unidadesLista.length,
+    unidadesLista,
+  );
+  console.log(
+    "Home page rendered - interessadosLista:",
+    interessadosLista.length,
+    interessadosLista,
+  );
 
   return (
     <div className="w-full flex justify-center relative pb-20 md:pb-14 h-full">

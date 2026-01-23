@@ -25,7 +25,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import * as andamento from "@/services/andamentos";
 import * as unidade from "@/services/unidades";
-import { useTransition, useState, useEffect } from "react";
+import { useTransition, useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { CalendarIcon, Loader2 } from "lucide-react";
 import DateInput from "@/components/ui/date-input";
@@ -120,34 +120,127 @@ export default function FormAndamento({
         <FormField
           control={form.control}
           name="destino"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Unidade de Destino</FormLabel>
-              <FormControl>
-                {loadingUnidades ? (
-                  <div className="flex items-center justify-center py-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="ml-2 text-sm text-muted-foreground">
-                      Carregando unidades...
-                    </span>
+          render={({ field }) => {
+            const [suggestionsDestino, setSuggestionsDestino] = useState<
+              IUnidade[]
+            >([]);
+            const [showSuggestionsDestino, setShowSuggestionsDestino] =
+              useState(false);
+            const [inputDestino, setInputDestino] = useState("");
+            const [selectedDestinoId, setSelectedDestinoId] = useState("");
+            const timeoutRefDestino = useRef<NodeJS.Timeout | null>(null);
+
+            useEffect(() => {
+              if (
+                field.value &&
+                field.value !== selectedDestinoId &&
+                unidades.length > 0
+              ) {
+                const unidadeSelecionada = unidades.find(
+                  (u) => u.id === field.value,
+                );
+                if (unidadeSelecionada) {
+                  setInputDestino(
+                    `${unidadeSelecionada.sigla} - ${unidadeSelecionada.nome}`,
+                  );
+                  setSelectedDestinoId(field.value);
+                }
+              }
+            }, [field.value, unidades, selectedDestinoId]);
+
+            async function fetchSuggestionsDestino(q: string) {
+              if (!q || q.length < 1) {
+                setSuggestionsDestino(unidades);
+                return;
+              }
+              try {
+                const filtrados = unidades.filter((u) =>
+                  `${u.sigla} ${u.nome}`
+                    .toLowerCase()
+                    .includes(q.toLowerCase()),
+                );
+                setSuggestionsDestino(filtrados);
+              } catch {
+                setSuggestionsDestino([]);
+              }
+            }
+
+            function handleChangeDestino(
+              e: React.ChangeEvent<HTMLInputElement>,
+            ) {
+              const value = e.target.value;
+              setInputDestino(value);
+              field.onChange("");
+              setSelectedDestinoId("");
+              if (timeoutRefDestino.current)
+                clearTimeout(timeoutRefDestino.current);
+              timeoutRefDestino.current = setTimeout(() => {
+                fetchSuggestionsDestino(value);
+                setShowSuggestionsDestino(true);
+              }, 250);
+            }
+
+            function handleSelectDestino(u: IUnidade) {
+              setInputDestino(`${u.sigla} - ${u.nome}`);
+              field.onChange(u.id);
+              setSelectedDestinoId(u.id);
+              setShowSuggestionsDestino(false);
+              setSuggestionsDestino([]);
+            }
+
+            return (
+              <FormItem className="relative">
+                <FormLabel>Unidade de Destino</FormLabel>
+                <FormControl>
+                  <div>
+                    {loadingUnidades ? (
+                      <div className="flex items-center justify-center py-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="ml-2 text-sm text-muted-foreground">
+                          Carregando unidades...
+                        </span>
+                      </div>
+                    ) : (
+                      <>
+                        <Input
+                          placeholder="Busque por sigla ou nome da unidade"
+                          value={inputDestino}
+                          onChange={handleChangeDestino}
+                          autoComplete="off"
+                          onBlur={() =>
+                            setTimeout(
+                              () => setShowSuggestionsDestino(false),
+                              200,
+                            )
+                          }
+                          onFocus={() => {
+                            fetchSuggestionsDestino(inputDestino);
+                            setShowSuggestionsDestino(true);
+                          }}
+                          style={{ appearance: "none" }}
+                        />
+                        {showSuggestionsDestino &&
+                          suggestionsDestino.length > 0 && (
+                            <ul className="absolute z-10 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-md mt-1 w-full max-h-48 overflow-auto shadow-lg">
+                              {suggestionsDestino.map((u) => (
+                                <li
+                                  key={u.id}
+                                  className="px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800"
+                                  onMouseDown={() => handleSelectDestino(u)}
+                                >
+                                  {u.sigla} - {u.nome}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                      </>
+                    )}
                   </div>
-                ) : (
-                  <select
-                    {...field}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <option value="">Selecione uma unidade</option>
-                    {unidades.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.sigla} - {u.nome}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            );
+          }}
         />
         <FormField
           control={form.control}

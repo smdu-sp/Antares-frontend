@@ -27,7 +27,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import * as processo from "@/services/processos";
-import { listaCompleta as listaCompletaUnidades } from "@/services/unidades";
+import { listarAutocomplete as listarUnidadesAutocomplete } from "@/services/unidades";
 import * as interessado from "@/services/interessados";
 import { useTransition, useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
@@ -38,7 +38,6 @@ import { useRouter, usePathname } from "next/navigation";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { MultiSelect } from "@/components/multi-select";
 
 const formSchema = z.object({
   numero_sei: z.string().min(3, "Número SEI deve ter ao menos 3 caracteres"),
@@ -49,6 +48,7 @@ const formSchema = z.object({
   data_recebimento: z.date({
     required_error: "Data de recebimento é obrigatória",
   }),
+  data_envio_unidade: z.date().optional(),
   prazo: z.date({
     required_error: "Prazo do processo é obrigatório",
   }),
@@ -68,40 +68,24 @@ export default function FormProcesso({
   const pathname = usePathname();
   const { data: session } = useSession();
 
-  const [unidades, setUnidades] = useState<IUnidade[]>([]);
-  const [loadingUnidades, setLoadingUnidades] = useState(true);
   const [interessados, setInteressados] = useState<IInteressado[]>([]);
   const [loadingInteressados, setLoadingInteressados] = useState(true);
-
-  useEffect(() => {
-    async function carregarUnidades() {
-      if (!session?.access_token) return;
-      try {
-        const resposta = await listaCompletaUnidades(session.access_token);
-        if (resposta.ok && Array.isArray(resposta.data)) {
-          setUnidades(resposta.data as IUnidade[]);
-        }
-      } catch (error) {
-        console.error("Erro ao carregar unidades:", error);
-      } finally {
-        setLoadingUnidades(false);
-      }
-    }
-    carregarUnidades();
-  }, [session?.access_token]);
 
   useEffect(() => {
     async function carregarInteressados() {
       if (!session?.access_token) return;
       try {
         const resposta = await interessado.query.listaCompleta(
-          session.access_token
+          session.access_token,
         );
         if (Array.isArray(resposta)) {
           setInteressados(resposta);
+        } else {
+          toast.error("Erro ao carregar interessados");
         }
       } catch (error) {
         console.error("Erro ao carregar interessados:", error);
+        toast.error("Erro ao conectar com o servidor de interessados");
       } finally {
         setLoadingInteressados(false);
       }
@@ -123,6 +107,9 @@ export default function FormProcesso({
       data_recebimento: processoData?.data_recebimento
         ? new Date(processoData.data_recebimento)
         : undefined,
+      data_envio_unidade: processoData?.data_envio_unidade
+        ? new Date(processoData.data_envio_unidade)
+        : undefined,
       prazo: processoData?.prazo ? new Date(processoData.prazo) : undefined,
     },
   });
@@ -138,6 +125,12 @@ export default function FormProcesso({
         prazo: data.prazo.toISOString(),
       };
 
+      // Adiciona data_envio_unidade se fornecida
+      if (data.data_envio_unidade) {
+        dataFormatada.data_envio_unidade =
+          data.data_envio_unidade.toISOString();
+      }
+
       // Adiciona interessado_id e unidade_remetente_id se fornecidos
       if (data.interessado_id) {
         dataFormatada.interessado_id = data.interessado_id;
@@ -145,8 +138,6 @@ export default function FormProcesso({
       if (data.unidade_remetente_id) {
         dataFormatada.unidade_remetente_id = data.unidade_remetente_id;
       }
-
-      console.log("📤 Dados sendo enviados ao backend:", dataFormatada);
 
       let resp;
       if (isUpdating && processoData?.id) {
@@ -161,7 +152,7 @@ export default function FormProcesso({
         toast.success(
           isUpdating
             ? "Processo atualizado com sucesso"
-            : "Processo criado com sucesso"
+            : "Processo criado com sucesso",
         );
         form.reset();
         // Limpa os filtros e busca da URL
@@ -207,111 +198,294 @@ export default function FormProcesso({
         <FormField
           control={form.control}
           name="interessado_id"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Interessado</FormLabel>
-              <FormControl>
-                {loadingInteressados ? (
-                  <div className="flex items-center justify-center p-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
+          render={({ field }) => {
+            const [suggestionsInteressado, setSuggestionsInteressado] =
+              useState<IInteressado[]>([]);
+            const [showSuggestionsInteressado, setShowSuggestionsInteressado] =
+              useState(false);
+            const [inputInteressado, setInputInteressado] = useState("");
+            const [selectedInteressadoId, setSelectedInteressadoId] =
+              useState("");
+            const timeoutRefInteressado = useRef<NodeJS.Timeout | null>(null);
+
+            // Inicializa o input quando o form tem dados
+            useEffect(() => {
+              if (
+                field.value &&
+                field.value !== selectedInteressadoId &&
+                interessados.length > 0
+              ) {
+                const interessadoSelecionado = interessados.find(
+                  (i) => i.id === field.value,
+                );
+                if (interessadoSelecionado) {
+                  setInputInteressado(interessadoSelecionado.valor);
+                  setSelectedInteressadoId(field.value);
+                }
+              }
+            }, [field.value, interessados, selectedInteressadoId]);
+
+            function fetchSuggestionsInteressado(q: string) {
+              if (!q || q.length < 1) {
+                // Se vazio, mostra todos os interessados
+                setSuggestionsInteressado(interessados);
+                return;
+              }
+              // Busca na lista completa já carregada
+              const filtrados = interessados.filter((i) =>
+                i.valor.toLowerCase().includes(q.toLowerCase()),
+              );
+              setSuggestionsInteressado(filtrados);
+            }
+
+            function handleChangeInteressado(
+              e: React.ChangeEvent<HTMLInputElement>,
+            ) {
+              const value = e.target.value;
+              setInputInteressado(value);
+              field.onChange("");
+              setSelectedInteressadoId("");
+              if (timeoutRefInteressado.current)
+                clearTimeout(timeoutRefInteressado.current);
+              timeoutRefInteressado.current = setTimeout(() => {
+                fetchSuggestionsInteressado(value);
+                setShowSuggestionsInteressado(true);
+              }, 250);
+            }
+
+            function handleSelectInteressado(inter: IInteressado) {
+              setInputInteressado(inter.valor);
+              field.onChange(inter.id);
+              setSelectedInteressadoId(inter.id);
+              setShowSuggestionsInteressado(false);
+              setSuggestionsInteressado([]);
+            }
+
+            return (
+              <FormItem className="relative">
+                <FormLabel>Interessado</FormLabel>
+                <FormControl>
+                  <div>
+                    {loadingInteressados ? (
+                      <div className="flex items-center justify-center p-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      </div>
+                    ) : (
+                      <>
+                        <Input
+                          placeholder="Busque pelo nome do interessado"
+                          value={inputInteressado}
+                          onChange={handleChangeInteressado}
+                          autoComplete="off"
+                          onBlur={() =>
+                            setTimeout(
+                              () => setShowSuggestionsInteressado(false),
+                              200,
+                            )
+                          }
+                          onFocus={() => {
+                            fetchSuggestionsInteressado(inputInteressado);
+                            setShowSuggestionsInteressado(true);
+                          }}
+                        />
+                        {showSuggestionsInteressado &&
+                          suggestionsInteressado.length > 0 && (
+                            <ul className="absolute z-10 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-md mt-1 w-full max-h-48 overflow-auto shadow-lg">
+                              {suggestionsInteressado.map((inter) => (
+                                <li
+                                  key={inter.id}
+                                  className="px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800"
+                                  onMouseDown={() =>
+                                    handleSelectInteressado(inter)
+                                  }
+                                >
+                                  {inter.valor}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                      </>
+                    )}
                   </div>
-                ) : (
-                  <MultiSelect
-                    options={interessados.map((i) => ({
-                      label: i.valor,
-                      value: i.id,
-                    }))}
-                    onValueChange={(values) => field.onChange(values[0] || "")}
-                    value={field.value ? [field.value] : []}
-                    placeholder="Selecione o interessado"
-                    variant="default"
-                    maxCount={1}
-                  />
-                )}
-              </FormControl>
-              <FormDescription>Interessado no processo</FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
+                </FormControl>
+                <FormDescription>Interessado no processo</FormDescription>
+                <FormMessage />
+              </FormItem>
+            );
+          }}
         />
         <FormField
           control={form.control}
           name="unidade_remetente_id"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Unidade Remetente</FormLabel>
-              <FormControl>
-                {loadingUnidades ? (
-                  <div className="flex items-center justify-center p-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
+          render={({ field }) => {
+            const [suggestionsUnidades, setSuggestionsUnidades] = useState<
+              IUnidade[]
+            >([]);
+            const [showSuggestionsUnidades, setShowSuggestionsUnidades] =
+              useState(false);
+            const [inputUnidade, setInputUnidade] = useState("");
+            const [selectedUnidadeId, setSelectedUnidadeId] = useState("");
+            const timeoutRefUnidade = useRef<NodeJS.Timeout | null>(null);
+
+            // Inicializa o input quando o form tem dados
+            useEffect(() => {
+              if (
+                field.value &&
+                field.value !== selectedUnidadeId &&
+                processoData?.unidadeRemetente
+              ) {
+                setInputUnidade(
+                  `${processoData.unidadeRemetente.sigla} - ${processoData.unidadeRemetente.nome}`,
+                );
+                setSelectedUnidadeId(field.value);
+              }
+            }, [
+              field.value,
+              processoData?.unidadeRemetente,
+              selectedUnidadeId,
+            ]);
+
+            async function fetchSuggestionsUnidades(q: string) {
+              if (!q || q.length < 1) {
+                setSuggestionsUnidades([]);
+                return;
+              }
+              try {
+                const token = session?.access_token;
+                if (!token) return;
+                const resposta = await listarUnidadesAutocomplete(token, q);
+                if (resposta.ok && Array.isArray(resposta.data)) {
+                  setSuggestionsUnidades(resposta.data as IUnidade[]);
+                } else {
+                  setSuggestionsUnidades([]);
+                }
+              } catch {
+                setSuggestionsUnidades([]);
+              }
+            }
+
+            function handleChangeUnidade(
+              e: React.ChangeEvent<HTMLInputElement>,
+            ) {
+              const value = e.target.value;
+              setInputUnidade(value);
+              field.onChange("");
+              setSelectedUnidadeId("");
+              if (timeoutRefUnidade.current)
+                clearTimeout(timeoutRefUnidade.current);
+              timeoutRefUnidade.current = setTimeout(() => {
+                fetchSuggestionsUnidades(value);
+                setShowSuggestionsUnidades(true);
+              }, 250);
+            }
+
+            function handleSelectUnidade(unidade: IUnidade) {
+              setInputUnidade(`${unidade.sigla} - ${unidade.nome}`);
+              field.onChange(unidade.id);
+              setSelectedUnidadeId(unidade.id);
+              setShowSuggestionsUnidades(false);
+              setSuggestionsUnidades([]);
+            }
+
+            return (
+              <FormItem className="relative">
+                <FormLabel>Unidade Remetente</FormLabel>
+                <FormControl>
+                  <div>
+                    <Input
+                      placeholder="Busque por sigla ou nome da unidade"
+                      value={inputUnidade}
+                      onChange={handleChangeUnidade}
+                      autoComplete="off"
+                      onBlur={() =>
+                        setTimeout(() => setShowSuggestionsUnidades(false), 200)
+                      }
+                      onFocus={() => {
+                        fetchSuggestionsUnidades(inputUnidade);
+                        setShowSuggestionsUnidades(true);
+                      }}
+                      style={{ appearance: "none" }}
+                    />
+                    {showSuggestionsUnidades &&
+                      suggestionsUnidades.length > 0 && (
+                        <ul className="absolute z-10 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-md mt-1 w-full max-h-48 overflow-auto shadow-lg">
+                          {suggestionsUnidades.map((unidade) => (
+                            <li
+                              key={unidade.id}
+                              className="px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800"
+                              onMouseDown={() => handleSelectUnidade(unidade)}
+                            >
+                              {unidade.sigla} - {unidade.nome}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                   </div>
-                ) : (
-                  <MultiSelect
-                    options={unidades.map((u) => ({
-                      label: `${u.sigla} - ${u.nome}`,
-                      value: u.id,
-                    }))}
-                    onValueChange={(values) => field.onChange(values[0] || "")}
-                    value={field.value ? [field.value] : []}
-                    placeholder="Selecione a unidade remetente"
-                    variant="default"
-                    maxCount={1}
-                  />
-                )}
-              </FormControl>
-              <FormDescription>Unidade que enviou o processo</FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
+                </FormControl>
+                <FormDescription>Unidade que enviou o processo</FormDescription>
+                <FormMessage />
+              </FormItem>
+            );
+          }}
         />
         <FormField
           control={form.control}
           name="origem"
           render={({ field }) => {
-            const [suggestions, setSuggestions] = useState<string[]>([]);
-            const [showSuggestions, setShowSuggestions] = useState(false);
-            const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+            const [suggestionsOrigem, setSuggestionsOrigem] = useState<
+              IUnidade[]
+            >([]);
+            const [showSuggestionsOrigem, setShowSuggestionsOrigem] =
+              useState(false);
+            const [inputOrigem, setInputOrigem] = useState("");
+            const timeoutRefOrigem = useRef<NodeJS.Timeout | null>(null);
 
-            async function fetchSuggestions(q: string) {
-              if (!q || q.length < 2) {
-                setSuggestions([]);
+            // Inicializa o input quando o form tem dados
+            useEffect(() => {
+              if (field.value && !inputOrigem) {
+                setInputOrigem(field.value);
+              }
+            }, [field.value, inputOrigem]);
+
+            async function fetchSuggestionsOrigem(q: string) {
+              if (!q || q.length < 1) {
+                setSuggestionsOrigem([]);
                 return;
               }
               try {
                 const token = session?.access_token;
-                const headers = token
-                  ? { Authorization: `Bearer ${token}` }
-                  : undefined;
-                const res = await fetch(
-                  `http://localhost:3000/processos/origens/autocomplete?q=${encodeURIComponent(
-                    q
-                  )}`,
-                  { headers }
-                );
-                if (res.ok) {
-                  const data = await res.json();
-                  setSuggestions(Array.isArray(data) ? data : []);
+                if (!token) return;
+                const resposta = await listarUnidadesAutocomplete(token, q);
+                if (resposta.ok && Array.isArray(resposta.data)) {
+                  setSuggestionsOrigem(resposta.data as IUnidade[]);
                 } else {
-                  setSuggestions([]);
+                  setSuggestionsOrigem([]);
                 }
               } catch {
-                setSuggestions([]);
+                setSuggestionsOrigem([]);
               }
             }
 
-            function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-              field.onChange(e);
+            function handleChangeOrigem(
+              e: React.ChangeEvent<HTMLInputElement>,
+            ) {
               const value = e.target.value;
-              if (timeoutRef.current) clearTimeout(timeoutRef.current);
-              timeoutRef.current = setTimeout(() => {
-                fetchSuggestions(value);
-                setShowSuggestions(true);
+              setInputOrigem(value);
+              field.onChange("");
+              if (timeoutRefOrigem.current)
+                clearTimeout(timeoutRefOrigem.current);
+              timeoutRefOrigem.current = setTimeout(() => {
+                fetchSuggestionsOrigem(value);
+                setShowSuggestionsOrigem(true);
               }, 250);
             }
 
-            function handleSelectSuggestion(s: string) {
-              field.onChange(s);
-              setShowSuggestions(false);
+            function handleSelectOrigem(unidade: IUnidade) {
+              const nomeUnidade = `${unidade.sigla} - ${unidade.nome}`;
+              setInputOrigem(nomeUnidade);
+              field.onChange(nomeUnidade);
+              setShowSuggestionsOrigem(false);
+              setSuggestionsOrigem([]);
             }
 
             return (
@@ -320,26 +494,28 @@ export default function FormProcesso({
                 <FormControl>
                   <div>
                     <Input
-                      placeholder="EXPEDIENTE"
-                      {...field}
-                      onChange={handleChange}
+                      placeholder="Busque por sigla ou nome da unidade"
+                      value={inputOrigem}
+                      onChange={handleChangeOrigem}
                       autoComplete="off"
                       onBlur={() =>
-                        setTimeout(() => setShowSuggestions(false), 200)
+                        setTimeout(() => setShowSuggestionsOrigem(false), 200)
                       }
-                      onFocus={() =>
-                        field.value && fetchSuggestions(field.value)
-                      }
+                      onFocus={() => {
+                        fetchSuggestionsOrigem(inputOrigem);
+                        setShowSuggestionsOrigem(true);
+                      }}
+                      style={{ appearance: "none" }}
                     />
-                    {showSuggestions && suggestions.length > 0 && (
+                    {showSuggestionsOrigem && suggestionsOrigem.length > 0 && (
                       <ul className="absolute z-10 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-md mt-1 w-full max-h-48 overflow-auto shadow-lg">
-                        {suggestions.map((s, i) => (
+                        {suggestionsOrigem.map((unidade) => (
                           <li
-                            key={s + i}
+                            key={unidade.id}
                             className="px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800"
-                            onMouseDown={() => handleSelectSuggestion(s)}
+                            onMouseDown={() => handleSelectOrigem(unidade)}
                           >
-                            {s}
+                            {unidade.sigla} - {unidade.nome}
                           </li>
                         ))}
                       </ul>
@@ -375,6 +551,32 @@ export default function FormProcesso({
               </FormControl>
               <FormDescription>
                 Data em que o gabinete recebeu o processo
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="data_envio_unidade"
+          render={({ field }) => (
+            <FormItem className="flex flex-col">
+              <FormLabel>Data de Envio para Unidade</FormLabel>
+              <FormControl>
+                <DateInput
+                  value={field.value ?? null}
+                  onChange={(d) => field.onChange(d ?? undefined)}
+                  placeholder="DD/MM/AAAA"
+                  calendarProps={{
+                    locale: ptBR,
+                    initialFocus: true,
+                    disabled: (date: Date) =>
+                      date > new Date() || date < new Date("1900-01-01"),
+                  }}
+                />
+              </FormControl>
+              <FormDescription>
+                Data em que o processo foi enviado para a unidade responsável
               </FormDescription>
               <FormMessage />
             </FormItem>

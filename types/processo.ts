@@ -57,6 +57,7 @@ export interface IProcesso {
   prazo?: Date;
   data_resposta_final?: Date | null;
   resposta_final?: string | null;
+  data_envio_unidade?: Date | null;
   ativo: boolean;
   criadoEm: Date;
   atualizadoEm: Date;
@@ -70,6 +71,7 @@ export interface ICreateProcesso {
   unidade_remetente_id?: string;
   origem: string;
   data_recebimento: string;
+  data_envio_unidade?: string;
 }
 
 export interface IUpdateProcesso {
@@ -80,6 +82,7 @@ export interface IUpdateProcesso {
   origem?: string;
   data_recebimento?: string;
   prazo?: string;
+  data_envio_unidade?: string;
   data_resposta_final?: string;
   resposta_final?: string;
 }

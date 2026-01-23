@@ -2,31 +2,30 @@
 
 "use client";
 
-import { IInteressado } from "@/types/interessado";
+import { IUnidade } from "@/types/unidade";
 import { ICellEditorComp } from "ag-grid-community";
-import { criar as criarInteressado } from "@/services/interessados/server-functions/criar";
+import { criar as criarUnidade } from "@/services/unidades/server-functions/criar";
 import {
-  listarTodas as listarTodosInteressados,
-  reativarInteressado,
-} from "@/services/interessados/server-functions/listar-todas";
+  listarTodas as listarTodasUnidades,
+  reativarUnidade,
+} from "@/services/unidades/server-functions/listar-todas";
 
-class InteressadoAutocompleteCellEditor implements ICellEditorComp {
+class UnidadeAutocompleteEditor implements ICellEditorComp {
   private eGui!: HTMLDivElement;
   private input!: HTMLInputElement;
   private listContainer!: HTMLDivElement;
-  private interessados: IInteressado[] = [];
+  private unidades: IUnidade[] = [];
   private params: any;
 
   init(params: any) {
     this.params = params;
     // Buscar dados do context do AG-Grid em vez de params diretos
-    this.interessados =
-      params.context?.interessados || params.interessados || [];
+    this.unidades = params.context?.unidades || params.unidades || [];
     console.log(
-      "InteressadoAutocompleteCellEditor init - interessados:",
-      this.interessados,
+      "UnidadeAutocompleteEditor init - unidades:",
+      this.unidades,
       "from context:",
-      params.context?.interessados,
+      params.context?.unidades,
     );
 
     this.eGui = document.createElement("div");
@@ -60,7 +59,7 @@ class InteressadoAutocompleteCellEditor implements ICellEditorComp {
     this.listContainer.style.backgroundColor = "#ffffff";
     this.listContainer.style.borderRadius = "4px";
     // Adicionar um data attribute para identificar e limpar depois
-    this.listContainer.setAttribute("data-interessado-list", "true");
+    this.listContainer.setAttribute("data-unidade-list", "true");
     document.body.appendChild(this.listContainer);
 
     this.eGui.appendChild(this.input);
@@ -112,10 +111,10 @@ class InteressadoAutocompleteCellEditor implements ICellEditorComp {
     const value = this.input.value.toLowerCase().trim();
     this.listContainer.innerHTML = "";
     console.log(
-      "InteressadoAutocompleteCellEditor updateSuggestions - value:",
+      "updateSuggestions - value:",
       value,
-      "interessados count:",
-      this.interessados.length,
+      "unidades count:",
+      this.unidades.length,
     );
 
     // Calcular posição do input para posicionar fixed
@@ -124,15 +123,15 @@ class InteressadoAutocompleteCellEditor implements ICellEditorComp {
     this.listContainer.style.left = `${rect.left}px`;
     this.listContainer.style.width = `${rect.width}px`;
 
-    // Filtrar interessados
-    const filtered = this.interessados.filter((i) =>
-      i.valor.toLowerCase().includes(value),
+    // Filtrar unidades
+    const filtered = this.unidades.filter((u) =>
+      `${u.sigla} ${u.nome}`.toLowerCase().includes(value),
     );
 
     if (filtered.length > 0) {
-      filtered.forEach((interessado, index) => {
+      filtered.forEach((unidade, index) => {
         const item = document.createElement("div");
-        item.textContent = interessado.valor.toUpperCase();
+        item.textContent = `${unidade.sigla} - ${unidade.nome}`;
         item.style.padding = "10px";
         item.style.cursor = "pointer";
         item.style.borderBottom = "1px solid #eee";
@@ -159,7 +158,7 @@ class InteressadoAutocompleteCellEditor implements ICellEditorComp {
 
         item.addEventListener("mousedown", (e) => {
           e.preventDefault(); // Previne que o input perca foco
-          this.selectItem(interessado);
+          this.selectItem(unidade);
         });
 
         this.listContainer.appendChild(item);
@@ -187,8 +186,8 @@ class InteressadoAutocompleteCellEditor implements ICellEditorComp {
 
       item.addEventListener("mousedown", (e) => {
         e.preventDefault();
-        // Criar novo interessado
-        this.criarNovoInteressado(value);
+        // Criar nova unidade
+        this.criarNovaUnidade(value);
       });
 
       this.listContainer.appendChild(item);
@@ -196,7 +195,7 @@ class InteressadoAutocompleteCellEditor implements ICellEditorComp {
     } else {
       // Mostrar placeholder
       const item = document.createElement("div");
-      item.textContent = "Selecione um interessado";
+      item.textContent = "Selecione uma unidade";
       item.style.padding = "10px";
       item.style.color = "#999";
       item.style.fontStyle = "italic";
@@ -206,8 +205,8 @@ class InteressadoAutocompleteCellEditor implements ICellEditorComp {
     }
   }
 
-  private selectItem(interessado: IInteressado) {
-    this.input.value = interessado.valor;
+  private selectItem(unidade: IUnidade) {
+    this.input.value = `${unidade.sigla} - ${unidade.nome}`;
     this.listContainer.style.display = "none";
     // Finalizar a edição no AG-Grid para disparar onCellValueChanged
     if (this.params.stopEditing) {
@@ -215,23 +214,39 @@ class InteressadoAutocompleteCellEditor implements ICellEditorComp {
     }
   }
 
-  private async criarNovoInteressado(valor: string) {
+  private async criarNovaUnidade(valor: string) {
     // Mostrar loading
     this.input.disabled = true;
     this.input.style.opacity = "0.6";
 
     try {
-      // Validar se tem conteúdo
-      if (!valor || valor.trim().length === 0) {
-        alert("Preencha o nome do interessado");
+      // Tentar extrair sigla e nome a partir do input
+      // Se o input for "ABC - Nome Completo", usa ABC como sigla
+      // Se for apenas "Nome", usa os primeiros 3 caracteres como sigla
+      let sigla = "";
+      let nome = valor.trim();
+
+      const partes = valor.split("-");
+      if (partes.length === 2) {
+        sigla = partes[0].trim().toUpperCase();
+        nome = partes[1].trim();
+      } else {
+        // Se não tem "-", usar os primeiros 3 caracteres como sigla
+        sigla = valor.substring(0, 3).toUpperCase();
+      }
+
+      // Validar se tem sigla e nome
+      if (!sigla || sigla.length === 0 || !nome || nome.length === 0) {
+        alert("Preencha corretamente: [SIGLA] - [NOME] ou apenas o nome");
         this.input.disabled = false;
         this.input.style.opacity = "1";
         return;
       }
 
       // Chamar server function para criar
-      let resposta = await criarInteressado({
-        valor: valor.trim(),
+      let resposta = await criarUnidade({
+        sigla: sigla,
+        nome: nome,
       });
 
       // Se erro de duplicata (409 Conflict ou mensagem de duplicata), tentar reativar
@@ -243,22 +258,22 @@ class InteressadoAutocompleteCellEditor implements ICellEditorComp {
 
       if (!resposta.ok && isDuplicata) {
         try {
-          // Tentar reativar um interessado inativo com mesmo valor
-          resposta = await this.reativarInteressadoInativo(valor.trim());
+          // Tentar reativar uma unidade inativa com mesmo nome/sigla
+          resposta = await this.reativarUnidadeInativa(sigla, nome);
         } catch (error) {
-          console.error("Erro ao reativar interessado:", error);
+          console.error("Erro ao reativar unidade:", error);
         }
       }
 
       if (resposta.ok && resposta.data) {
-        // Interessado criado ou reativado com sucesso
-        const novoInteressado = resposta.data as IInteressado;
+        // Unidade criada ou reativada com sucesso
+        const novaUnidade = resposta.data as IUnidade;
 
         // Adicionar à lista local
-        this.interessados.push(novoInteressado);
+        this.unidades.push(novaUnidade);
 
         // Usar o valor criado
-        this.input.value = novoInteressado.valor;
+        this.input.value = `${novaUnidade.sigla} - ${novaUnidade.nome}`;
         this.listContainer.style.display = "none";
 
         // Finalizar edição
@@ -266,52 +281,52 @@ class InteressadoAutocompleteCellEditor implements ICellEditorComp {
           this.params.stopEditing();
         }
       } else {
-        alert(`Erro ao criar interessado: ${resposta.error}`);
+        alert(`Erro ao criar unidade: ${resposta.error}`);
       }
     } catch (error) {
-      console.error("Erro ao criar interessado:", error);
-      alert("Erro ao criar interessado. Tente novamente.");
+      console.error("Erro ao criar unidade:", error);
+      alert("Erro ao criar unidade. Tente novamente.");
     } finally {
       this.input.disabled = false;
       this.input.style.opacity = "1";
     }
   }
 
-  private async reativarInteressadoInativo(valor: string) {
+  private async reativarUnidadeInativa(sigla: string, nome: string) {
     try {
-      // Buscar todos os interessados (incluindo inativos) via server action
-      const todosInteressados = await listarTodosInteressados();
+      // Buscar todas as unidades (incluindo inativas) via server action
+      const todasUnidades = await listarTodasUnidades();
 
-      // Procurar interessado inativo com mesmo valor
-      const interessadoInativo = (todosInteressados as IInteressado[]).find(
-        (i) =>
-          i.ativo === false && i.valor.toUpperCase() === valor.toUpperCase(),
+      // Procurar unidade inativa com mesma sigla ou nome
+      const unidadeInativa = (todasUnidades as IUnidade[]).find(
+        (u) =>
+          u.ativo === false &&
+          (u.sigla.toUpperCase() === sigla.toUpperCase() ||
+            u.nome.toUpperCase() === nome.toUpperCase()),
       );
 
-      if (interessadoInativo) {
-        // Reativar o interessado
-        const respostaAtualizar = await reativarInteressado(
-          interessadoInativo.id,
-          {
-            valor: valor,
-          },
-        );
+      if (unidadeInativa) {
+        // Reativar a unidade
+        const respostaAtualizar = await reativarUnidade(unidadeInativa.id, {
+          nome: nome,
+          sigla: sigla,
+        });
 
         return respostaAtualizar;
       }
 
-      // Se não encontrou inativo, retornar erro
+      // Se não encontrou inativa, retornar erro
       return {
         ok: false,
-        error: "Interessado não encontrado",
+        error: "Unidade não encontrada",
         data: null,
         status: 404,
       };
     } catch (error) {
-      console.error("Erro ao reativar interessado:", error);
+      console.error("Erro ao reativar unidade:", error);
       return {
         ok: false,
-        error: "Erro ao reativar interessado",
+        error: "Erro ao reativar unidade",
         data: null,
         status: 500,
       };
@@ -354,4 +369,4 @@ class InteressadoAutocompleteCellEditor implements ICellEditorComp {
   }
 }
 
-export default InteressadoAutocompleteCellEditor;
+export default UnidadeAutocompleteEditor;
