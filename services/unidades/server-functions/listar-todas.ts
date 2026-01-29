@@ -31,7 +31,7 @@ export async function listarTodas(): Promise<IUnidade[]> {
     }
 
     const data = await response.json();
-    return Array.isArray(data) ? data : [];
+    return Array.isArray(data) ? (data as IUnidade[]) : [];
   } catch (error) {
     console.error("Erro ao buscar unidades:", error);
     return [];
@@ -48,7 +48,7 @@ export async function reativarUnidade(
   const baseURL = process.env.NEXT_PUBLIC_API_URL;
 
   try {
-    const response = await fetch(`${baseURL}unidades/${id}`, {
+    const response = await fetch(`${baseURL}unidades/${id}/reativar`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",

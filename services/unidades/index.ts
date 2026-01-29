@@ -1,14 +1,8 @@
 export {
-	buscarTudo,
-	buscarPorId,
-	listaCompleta,
-} from './query-functions';
+  buscarTudo,
+  buscarPorId,
+  listaCompleta,
+  listarAutocomplete,
+} from "./query-functions";
 
-export {
-	atualizar,
-	criar,
-	remover,
-} from './server-functions';
-
-
-
+export { atualizar, criar, remover } from "./server-functions";

@@ -106,15 +106,18 @@ export default function FormProcesso({
       origem: processoData?.origem || "",
       data_recebimento: processoData?.data_recebimento
         ? new Date(processoData.data_recebimento)
-        : undefined,
+        : new Date(),
       data_envio_unidade: processoData?.data_envio_unidade
         ? new Date(processoData.data_envio_unidade)
         : undefined,
-      prazo: processoData?.prazo ? new Date(processoData.prazo) : undefined,
+      prazo: processoData?.prazo
+        ? new Date(processoData.prazo)
+        : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 dias à frente
     },
   });
 
   async function onSubmit(data: z.infer<typeof formSchema>) {
+    console.log("onSubmit called with data:", data);
     startTransition(async () => {
       // Converte as datas para ISO string e mapeia os campos
       const dataFormatada: any = {
@@ -139,6 +142,8 @@ export default function FormProcesso({
         dataFormatada.unidade_remetente_id = data.unidade_remetente_id;
       }
 
+      console.log("dataFormatada:", dataFormatada);
+
       let resp;
       if (isUpdating && processoData?.id) {
         resp = await processo.server.atualizar(processoData.id, dataFormatada);
@@ -146,9 +151,13 @@ export default function FormProcesso({
         resp = await processo.server.criar(dataFormatada as ICreateProcesso);
       }
 
+      console.log("resp:", resp);
+
       if (!resp.ok) {
+        console.log("Error response:", resp.error);
         toast.error("Erro", { description: resp.error });
       } else {
+        console.log("Success: Processo criado/atualizado");
         toast.success(
           isUpdating
             ? "Processo atualizado com sucesso"

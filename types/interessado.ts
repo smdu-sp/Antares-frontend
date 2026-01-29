@@ -5,4 +5,5 @@ export interface IInteressado {
   valor: string;
   criadoEm: string;
   atualizadoEm: string;
+  ativo?: boolean;
 }

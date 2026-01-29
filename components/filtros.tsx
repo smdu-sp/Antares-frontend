@@ -89,14 +89,14 @@ export function Filtros({
     camposFiltraveis
       ? camposFiltraveis.reduce(
           (acc, item) => ({ ...acc, [item.tag]: item.default || "" }),
-          {}
+          {},
         )
-      : {}
+      : {},
   );
 
   // Timer para debounce
   const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout | null>(
-    null
+    null,
   );
   const [isSearching, setIsSearching] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -144,7 +144,7 @@ export function Filtros({
   }, [filtros, isInitialized, autoSearch]);
 
   function atualizaFiltros() {
-    let urlParams = "";
+    let urlParams = "pagina=1&"; // Sempre reseta para página 1 ao filtrar
 
     if (clearOtherFiltersOnSearch) {
       // Se clearOtherFiltersOnSearch estiver ativo, apenas adiciona os filtros gerenciados
@@ -169,9 +169,9 @@ export function Filtros({
       camposFiltraveis
         ? camposFiltraveis.reduce(
             (acc, item) => ({ ...acc, [item.tag]: "" }),
-            {}
+            {},
           )
-        : {}
+        : {},
     );
     router.push(pathname);
   }
@@ -297,7 +297,7 @@ export function Filtros({
                       <Check
                         className={cn(
                           "mr-2 h-4 w-4",
-                          value === opcao.value ? "opacity-100" : "opacity-0"
+                          value === opcao.value ? "opacity-100" : "opacity-0",
                         )}
                       />
                       {opcao.label}
@@ -322,7 +322,7 @@ export function Filtros({
     >(datas[0] !== "" && datas[1] !== "" ? { from, to } : undefined);
 
     function handleSelecionaData(
-      date: { from?: Date | null; to?: Date | null } | undefined
+      date: { from?: Date | null; to?: Date | null } | undefined,
     ) {
       setDate(date);
       const from = date?.from ? format(date.from, "dd-MM-yyyy") : "";

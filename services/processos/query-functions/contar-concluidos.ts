@@ -1,17 +1,17 @@
 /** @format */
 
 export async function contarConcluidos(
-  token: string
+  token: string,
 ): Promise<{ ok: boolean; data: number | null; error: string | null }> {
   try {
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}processos/concluidos/contar`,
+      `${process.env.NEXT_PUBLIC_API_URL}processos/contar/concluidos`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
         },
         cache: "no-store",
-      }
+      },
     );
 
     if (!response.ok) {

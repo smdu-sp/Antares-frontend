@@ -31,7 +31,7 @@ export async function listarTodas(): Promise<IInteressado[]> {
     }
 
     const data = await response.json();
-    return Array.isArray(data) ? data : [];
+    return Array.isArray(data) ? (data as IInteressado[]) : [];
   } catch (error) {
     console.error("Erro ao buscar interessados:", error);
     return [];
@@ -45,8 +45,8 @@ export async function reativarInteressado(id: string, data: { valor: string }) {
   const baseURL = process.env.NEXT_PUBLIC_API_URL;
 
   try {
-    const response = await fetch(`${baseURL}interessados/${id}`, {
-      method: "PUT",
+    const response = await fetch(`${baseURL}interessados/${id}/reativar`, {
+      method: "PATCH",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${session.access_token}`,

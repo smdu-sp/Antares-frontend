@@ -50,9 +50,11 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 function AndamentosDetail({
   processo,
   unidades,
+  interessados,
 }: {
   processo: IProcesso;
   unidades: IUnidade[];
+  interessados: IInteressado[];
 }) {
   const { data: session } = useSession();
   const { theme, systemTheme } = useTheme();
@@ -96,6 +98,7 @@ function AndamentosDetail({
       destino: "",
       data_envio: new Date().toISOString(),
       prazo: null,
+      prorrogacao: null,
       status: "EM_ANDAMENTO",
       data_resposta: null,
       observacao: "",
@@ -188,6 +191,10 @@ function AndamentosDetail({
               ? event.newValue
               : andamentoAtualizado.data_envio,
           prazo: field === "prazo" ? event.newValue : andamentoAtualizado.prazo,
+          prorrogacao:
+            field === "prorrogacao"
+              ? event.newValue
+              : andamentoAtualizado.prorrogacao,
           status:
             field === "status" ? event.newValue : andamentoAtualizado.status,
           resposta:
@@ -220,6 +227,8 @@ function AndamentosDetail({
           dataToSave.data_envio = convertDateField(dataToSave.data_envio);
         if (dataToSave.prazo)
           dataToSave.prazo = convertDateField(dataToSave.prazo);
+        if (dataToSave.prorrogacao)
+          dataToSave.prorrogacao = convertDateField(dataToSave.prorrogacao);
         if (dataToSave.resposta)
           dataToSave.resposta = convertDateField(dataToSave.resposta);
 
@@ -384,6 +393,27 @@ function AndamentosDetail({
         width: 130,
       },
       {
+        field: "prorrogacao",
+        headerName: "Prorrogação",
+        editable: true,
+        cellEditor: DateCellEditor,
+        valueGetter: (params) => {
+          if (!params.data?.prorrogacao) return null;
+          return new Date(params.data.prorrogacao);
+        },
+        valueSetter: (params) => {
+          params.data.prorrogacao = params.newValue
+            ? params.newValue.toISOString()
+            : null;
+          return true;
+        },
+        valueFormatter: (params) => {
+          if (!params.value) return "";
+          return format(params.value, "dd/MM/yyyy", { locale: ptBR });
+        },
+        width: 130,
+      },
+      {
         field: "status",
         headerName: "Status",
         editable: true,
@@ -513,6 +543,7 @@ function AndamentosDetail({
           {
             height: `${gridHeight}px`,
             width: "100%",
+            minWidth: "1420px",
             overflowX: "auto",
             overflowY: "auto",
             ...(theme === "dark" ||
@@ -546,6 +577,7 @@ function AndamentosDetail({
           // Passar dados dinâmicos para os cell editors
           context={{
             unidades: unidades,
+            interessados: interessados,
           }}
           overlayNoRowsTemplate="Nenhum andamento cadastrado"
         />
@@ -575,9 +607,27 @@ export default function ProcessosSpreadsheet({
   // Mapa de versões para controle de conflito
   const versionsRef = useRef<Map<string, Date>>(new Map());
 
+  // Prevenir salvamentos duplicados
+  const savingRef = useRef<Set<string>>(new Set());
+
   // Atualizar processos locais quando props mudar
+  const initializedRef = useRef(false);
   useEffect(() => {
     setProcessosLocal(processos);
+    // Manter apenas expandedRows para processos que ainda existem
+    setExpandedRows((prev) => {
+      const newExpanded = new Set<string>();
+      const currentIds = new Set(processos.map((p) => p.id));
+      prev.forEach((id) => {
+        if (currentIds.has(id)) {
+          newExpanded.add(id);
+        }
+      });
+      return newExpanded;
+    });
+    if (!initializedRef.current) {
+      initializedRef.current = true;
+    }
   }, [processos]);
 
   // Criar dados da linha incluindo linhas de detalhe
@@ -598,9 +648,9 @@ export default function ProcessosSpreadsheet({
   }, [processosLocal, expandedRows]);
 
   useEffect(() => {
-    // Inicializa versões
+    // Inicializa versões apenas para processos que ainda não têm versão
     processosLocal.forEach((p) => {
-      if (!(p as any)._isNew) {
+      if (!(p as any)._isNew && !versionsRef.current.has(p.id)) {
         versionsRef.current.set(p.id, new Date(p.atualizadoEm));
       }
     });
@@ -608,8 +658,7 @@ export default function ProcessosSpreadsheet({
 
   // Debug: verificar se os dados estão chegando
   useEffect(() => {
-    console.log("ProcessosSpreadsheet - unidades:", unidades);
-    console.log("ProcessosSpreadsheet - interessados:", interessados);
+    // Dados de debug removidos por segurança
   }, [unidades, interessados]);
 
   const unidadesOptions = useMemo(
@@ -913,6 +962,40 @@ export default function ProcessosSpreadsheet({
           width: 120,
         },
         {
+          field: "data_prorrogacao",
+          headerName: "Prorrogação",
+          editable: true,
+          cellEditor: DateCellEditor,
+          valueGetter: (params: any) => {
+            const value = params.data?.data_prorrogacao;
+            if (!value) return null;
+
+            // Se já é uma Date, retorna
+            if (value instanceof Date) return value;
+
+            // Se é string, tenta converter
+            if (typeof value === "string") {
+              const date = new Date(value);
+              return isNaN(date.getTime()) ? null : date;
+            }
+
+            return null;
+          },
+          valueSetter: (params: any) => {
+            params.data.data_prorrogacao = params.newValue
+              ? params.newValue.toISOString()
+              : null;
+            return true;
+          },
+          valueFormatter: (params: any) => {
+            if (!params.value) return "";
+            return format(params.value, "dd/MM/yyyy", {
+              locale: ptBR,
+            });
+          },
+          width: 130,
+        },
+        {
           field: "data_resposta_final",
           headerName: "Data Resposta Final",
           editable: true,
@@ -937,7 +1020,7 @@ export default function ProcessosSpreadsheet({
         },
         {
           field: "resposta_final",
-          headerName: "Resposta Final",
+          headerName: "Observações",
           editable: true,
           width: 300,
           wrapText: true,
@@ -996,18 +1079,46 @@ export default function ProcessosSpreadsheet({
       // Verificar se houve alteração real
       if (oldValue === newValue && !isNew) return;
 
-      // Se for novo processo, criar
+      const saveKey = `${processoAtualizado.id}-${field}`;
+
+      // Prevenir múltiplas requisições simultâneas do mesmo processo
+      if (savingRef.current.has(processoAtualizado.id)) {
+        return;
+      }
+
+      // Prevenir múltiplas requisições simultâneas do mesmo campo
+      if (savingRef.current.has(saveKey)) {
+        return;
+      }
+
+      // Se for novo processo, verificar campos obrigatórios primeiro
       if (isNew) {
-        // Validar campos obrigatórios antes de tentar criar
         if (
           !processoAtualizado.numero_sei ||
           !processoAtualizado.assunto ||
           !processoAtualizado.origem
         ) {
-          // Ainda faltam campos obrigatórios, apenas atualizar localmente
+          // Ainda faltam campos obrigatórios, não salvar
           return;
         }
+      }
 
+      // Prevenir múltiplas requisições simultâneas do mesmo processo
+      if (savingRef.current.has(processoAtualizado.id)) {
+        return;
+      }
+
+      // Prevenir múltiplas requisições simultâneas do mesmo campo
+      if (savingRef.current.has(saveKey)) {
+        return;
+      }
+
+      // Marcar como salvando
+      savingRef.current.add(processoAtualizado.id);
+      savingRef.current.add(saveKey);
+
+      // Se for novo processo, criar
+      if (isNew) {
         try {
           // Helper para converter data
           const convertDateField = (value: any) => {
@@ -1050,7 +1161,11 @@ export default function ProcessosSpreadsheet({
           const dataToCreate: any = {
             numero_sei: processoAtualizado.numero_sei,
             assunto: processoAtualizado.assunto,
-            origem: processoAtualizado.origem,
+            origem:
+              typeof processoAtualizado.origem === "string" &&
+              processoAtualizado.origem.includes(" - ")
+                ? processoAtualizado.origem.split(" - ")[0]
+                : processoAtualizado.origem,
             data_recebimento:
               convertDateField(processoAtualizado.data_recebimento) ||
               new Date().toISOString(),
@@ -1062,6 +1177,15 @@ export default function ProcessosSpreadsheet({
           if (processoAtualizado.unidadeRemetente?.id) {
             dataToCreate.unidade_remetente_id =
               processoAtualizado.unidadeRemetente.id;
+          } else if (
+            typeof processoAtualizado.unidadeRemetente === "string" &&
+            processoAtualizado.unidadeRemetente.includes(" - ")
+          ) {
+            const sigla = processoAtualizado.unidadeRemetente.split(" - ")[0];
+            const unidade = unidades.find((u) => u.sigla === sigla);
+            if (unidade) {
+              dataToCreate.unidade_remetente_id = unidade.id;
+            }
           }
           if (processoAtualizado.prazo) {
             dataToCreate.prazo = convertDateField(processoAtualizado.prazo);
@@ -1179,6 +1303,7 @@ export default function ProcessosSpreadsheet({
         } else if (
           field === "data_recebimento" ||
           field === "prazo" ||
+          field === "data_prorrogacao" ||
           field === "data_envio_unidade" ||
           field === "data_resposta_final"
         ) {
@@ -1204,9 +1329,17 @@ export default function ProcessosSpreadsheet({
           // Atualizar versão após sucesso
           if (response.data) {
             const updatedProcesso = response.data as IProcesso;
+
             versionsRef.current.set(
               processoAtualizado.id,
               new Date(updatedProcesso.atualizadoEm),
+            );
+
+            // Atualizar o estado local com os dados do servidor
+            setProcessosLocal((prevProcessos) =>
+              prevProcessos.map((p) =>
+                p.id === processoAtualizado.id ? updatedProcesso : p,
+              ),
             );
 
             // Se salvou data_resposta_final, marcar todos os andamentos como CONCLUIDO
@@ -1266,6 +1399,10 @@ export default function ProcessosSpreadsheet({
         toast.error("Erro ao atualizar processo", {
           description: "Erro ao se comunicar com o servidor",
         });
+      } finally {
+        // Remover da lista de salvamento
+        savingRef.current.delete(saveKey);
+        savingRef.current.delete(processoAtualizado.id);
       }
     },
     [session?.access_token, router, processosLocal],
@@ -1329,6 +1466,7 @@ export default function ProcessosSpreadsheet({
           key={data._processo.id}
           processo={data._processo as IProcesso}
           unidades={unidades}
+          interessados={interessados}
         />
       </div>
     );
@@ -1372,6 +1510,7 @@ export default function ProcessosSpreadsheet({
           {
             height: "calc(100vh - 200px)",
             width: "100%",
+            minWidth: "2170px",
             overflowX: "auto",
             overflowY: "auto",
             ...(theme === "dark" ||

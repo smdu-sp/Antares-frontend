@@ -9,7 +9,7 @@ import {
   listarTodas as listarTodosInteressados,
   reativarInteressado,
 } from "@/services/interessados/server-functions/listar-todas";
-
+import { toast } from "sonner";
 class InteressadoAutocompleteCellEditor implements ICellEditorComp {
   private eGui!: HTMLDivElement;
   private input!: HTMLInputElement;
@@ -22,12 +22,6 @@ class InteressadoAutocompleteCellEditor implements ICellEditorComp {
     // Buscar dados do context do AG-Grid em vez de params diretos
     this.interessados =
       params.context?.interessados || params.interessados || [];
-    console.log(
-      "InteressadoAutocompleteCellEditor init - interessados:",
-      this.interessados,
-      "from context:",
-      params.context?.interessados,
-    );
 
     this.eGui = document.createElement("div");
     this.eGui.style.position = "relative";
@@ -111,18 +105,17 @@ class InteressadoAutocompleteCellEditor implements ICellEditorComp {
   private updateSuggestions() {
     const value = this.input.value.toLowerCase().trim();
     this.listContainer.innerHTML = "";
-    console.log(
-      "InteressadoAutocompleteCellEditor updateSuggestions - value:",
-      value,
-      "interessados count:",
-      this.interessados.length,
-    );
 
     // Calcular posição do input para posicionar fixed
     const rect = this.input.getBoundingClientRect();
     this.listContainer.style.top = `${rect.bottom}px`;
     this.listContainer.style.left = `${rect.left}px`;
     this.listContainer.style.width = `${rect.width}px`;
+
+    // Verificar se o input corresponde a um interessado existente
+    const inputMatchesExisting = this.interessados.some((i) => {
+      return i.valor.toLowerCase() === value;
+    });
 
     // Filtrar interessados
     const filtered = this.interessados.filter((i) =>
@@ -166,7 +159,7 @@ class InteressadoAutocompleteCellEditor implements ICellEditorComp {
       });
 
       this.listContainer.style.display = "block";
-    } else if (value.trim().length > 0) {
+    } else if (value.trim().length > 0 && !inputMatchesExisting) {
       // Mostrar opção de criar novo
       const item = document.createElement("div");
       item.textContent = `Criar: "${value}"`;
@@ -223,7 +216,9 @@ class InteressadoAutocompleteCellEditor implements ICellEditorComp {
     try {
       // Validar se tem conteúdo
       if (!valor || valor.trim().length === 0) {
-        alert("Preencha o nome do interessado");
+        toast.error("Erro ao criar interessado", {
+          description: "Preencha o nome do interessado",
+        });
         this.input.disabled = false;
         this.input.style.opacity = "1";
         return;
@@ -266,11 +261,15 @@ class InteressadoAutocompleteCellEditor implements ICellEditorComp {
           this.params.stopEditing();
         }
       } else {
-        alert(`Erro ao criar interessado: ${resposta.error}`);
+        toast.error("Erro ao criar interessado", {
+          description: resposta.error,
+        });
       }
     } catch (error) {
       console.error("Erro ao criar interessado:", error);
-      alert("Erro ao criar interessado. Tente novamente.");
+      toast.error("Erro ao criar interessado", {
+        description: "Tente novamente mais tarde",
+      });
     } finally {
       this.input.disabled = false;
       this.input.style.opacity = "1";
@@ -283,8 +282,8 @@ class InteressadoAutocompleteCellEditor implements ICellEditorComp {
       const todosInteressados = await listarTodosInteressados();
 
       // Procurar interessado inativo com mesmo valor
-      const interessadoInativo = (todosInteressados as IInteressado[]).find(
-        (i) =>
+      const interessadoInativo = todosInteressados.find(
+        (i: IInteressado) =>
           i.ativo === false && i.valor.toUpperCase() === valor.toUpperCase(),
       );
 

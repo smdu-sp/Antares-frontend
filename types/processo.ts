@@ -55,6 +55,7 @@ export interface IProcesso {
   origem?: string;
   data_recebimento?: Date;
   prazo?: Date;
+  data_prorrogacao?: Date | null;
   data_resposta_final?: Date | null;
   resposta_final?: string | null;
   data_envio_unidade?: Date | null;
@@ -82,6 +83,7 @@ export interface IUpdateProcesso {
   origem?: string;
   data_recebimento?: string;
   prazo?: string;
+  data_prorrogacao?: string;
   data_envio_unidade?: string;
   data_resposta_final?: string;
   resposta_final?: string;

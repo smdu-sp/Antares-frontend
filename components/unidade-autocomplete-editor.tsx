@@ -9,6 +9,7 @@ import {
   listarTodas as listarTodasUnidades,
   reativarUnidade,
 } from "@/services/unidades/server-functions/listar-todas";
+import { toast } from "sonner";
 
 class UnidadeAutocompleteEditor implements ICellEditorComp {
   private eGui!: HTMLDivElement;
@@ -21,12 +22,6 @@ class UnidadeAutocompleteEditor implements ICellEditorComp {
     this.params = params;
     // Buscar dados do context do AG-Grid em vez de params diretos
     this.unidades = params.context?.unidades || params.unidades || [];
-    console.log(
-      "UnidadeAutocompleteEditor init - unidades:",
-      this.unidades,
-      "from context:",
-      params.context?.unidades,
-    );
 
     this.eGui = document.createElement("div");
     this.eGui.style.position = "relative";
@@ -110,12 +105,6 @@ class UnidadeAutocompleteEditor implements ICellEditorComp {
   private updateSuggestions() {
     const value = this.input.value.toLowerCase().trim();
     this.listContainer.innerHTML = "";
-    console.log(
-      "updateSuggestions - value:",
-      value,
-      "unidades count:",
-      this.unidades.length,
-    );
 
     // Calcular posição do input para posicionar fixed
     const rect = this.input.getBoundingClientRect();
@@ -127,6 +116,12 @@ class UnidadeAutocompleteEditor implements ICellEditorComp {
     const filtered = this.unidades.filter((u) =>
       `${u.sigla} ${u.nome}`.toLowerCase().includes(value),
     );
+
+    // Verificar se o input atual corresponde a uma unidade existente
+    const inputMatchesExisting = this.unidades.some((u) => {
+      const formatted = `${u.sigla} - ${u.nome}`;
+      return formatted.toLowerCase() === value.toLowerCase();
+    });
 
     if (filtered.length > 0) {
       filtered.forEach((unidade, index) => {
@@ -165,8 +160,8 @@ class UnidadeAutocompleteEditor implements ICellEditorComp {
       });
 
       this.listContainer.style.display = "block";
-    } else if (value.trim().length > 0) {
-      // Mostrar opção de criar novo
+    } else if (value.trim().length > 0 && !inputMatchesExisting) {
+      // Mostrar opção de criar novo - apenas se não houver match existente
       const item = document.createElement("div");
       item.textContent = `Criar: "${value}"`;
       item.style.padding = "10px";
@@ -237,7 +232,10 @@ class UnidadeAutocompleteEditor implements ICellEditorComp {
 
       // Validar se tem sigla e nome
       if (!sigla || sigla.length === 0 || !nome || nome.length === 0) {
-        alert("Preencha corretamente: [SIGLA] - [NOME] ou apenas o nome");
+        toast.error("Erro ao criar unidade", {
+          description:
+            "Preencha corretamente: [SIGLA] - [NOME] ou apenas o nome",
+        });
         this.input.disabled = false;
         this.input.style.opacity = "1";
         return;
@@ -281,11 +279,15 @@ class UnidadeAutocompleteEditor implements ICellEditorComp {
           this.params.stopEditing();
         }
       } else {
-        alert(`Erro ao criar unidade: ${resposta.error}`);
+        toast.error("Erro ao criar unidade", {
+          description: resposta.error || "Erro desconhecido",
+        });
       }
     } catch (error) {
       console.error("Erro ao criar unidade:", error);
-      alert("Erro ao criar unidade. Tente novamente.");
+      toast.error("Erro ao criar unidade", {
+        description: "Tente novamente mais tarde",
+      });
     } finally {
       this.input.disabled = false;
       this.input.style.opacity = "1";
@@ -298,8 +300,8 @@ class UnidadeAutocompleteEditor implements ICellEditorComp {
       const todasUnidades = await listarTodasUnidades();
 
       // Procurar unidade inativa com mesma sigla ou nome
-      const unidadeInativa = (todasUnidades as IUnidade[]).find(
-        (u) =>
+      const unidadeInativa = todasUnidades.find(
+        (u: IUnidade) =>
           u.ativo === false &&
           (u.sigla.toUpperCase() === sigla.toUpperCase() ||
             u.nome.toUpperCase() === nome.toUpperCase()),

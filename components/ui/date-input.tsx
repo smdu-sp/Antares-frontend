@@ -72,12 +72,31 @@ export default function DateInput({
       onChange?.(null);
       return;
     }
-    const parsed = parseStrict(text);
-    if (parsed) {
-      onChange?.(parsed);
-    } else {
-      // Se não válido, manter o texto como está, value não muda
+    // Só valida e salva se a data estiver completa (DD/MM/YYYY = 10 caracteres)
+    if (text.length === 10) {
+      const parsed = parseStrict(text);
+      if (parsed) {
+        onChange?.(parsed);
+      }
     }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      const parsed = parseStrict(text);
+      if (parsed && text.length === 10) {
+        onChange?.(parsed);
+        setIsUserTyping(false);
+      }
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData("text");
+    const masked = applyMask(pasted);
+    setText(masked);
+    setIsUserTyping(true);
   };
 
   return (
@@ -91,6 +110,8 @@ export default function DateInput({
           }}
           onFocus={() => setOpen(true)}
           onBlur={handleBlur}
+          onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
           placeholder={placeholder}
           className={`${className ?? ""} pr-10 h-full text-sm`}
           disabled={disabled}

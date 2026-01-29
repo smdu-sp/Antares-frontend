@@ -61,10 +61,28 @@ async function Home({
   let ok = false;
   const {
     busca = "",
+    interessado: interessadoFiltro = "",
+    origem = "",
     vencendoHoje = "",
     atrasados = "",
     concluidos = "",
   } = await searchParams;
+
+  // Garantir que os parâmetros sejam strings
+  const buscaStr = Array.isArray(busca) ? busca[0] || "" : busca;
+  const interessadoFiltroStr = Array.isArray(interessadoFiltro)
+    ? interessadoFiltro[0] || ""
+    : interessadoFiltro;
+  const origemStr = Array.isArray(origem) ? origem[0] || "" : origem;
+  const vencendoHojeStr = Array.isArray(vencendoHoje)
+    ? vencendoHoje[0] || ""
+    : vencendoHoje;
+  const atrasadosStr = Array.isArray(atrasados)
+    ? atrasados[0] || ""
+    : atrasados;
+  const concluidosStr = Array.isArray(concluidos)
+    ? concluidos[0] || ""
+    : concluidos;
   let dados: IProcesso[] = [];
   let unidadesLista: IUnidade[] = [];
   let interessadosLista: IInteressado[] = [];
@@ -83,7 +101,7 @@ async function Home({
       session.access_token || "",
       1,
       1000, // Buscar muitos processos para filtrar no frontend
-      busca as string,
+      buscaStr as string,
       false, // Não usar filtro do backend
       false, // Não usar filtro do backend
     );
@@ -176,7 +194,47 @@ async function Home({
       const hoje = new Date();
       hoje.setHours(0, 0, 0, 0);
 
-      if (vencendoHoje === "true") {
+      // Filtro de busca (procura em numero_sei, assunto, interessado, resposta_final e campos dos andamentos)
+      if (buscaStr.trim()) {
+        const termoBusca = buscaStr.toLowerCase().trim();
+        dados = dados.filter((p: any) => {
+          // Busca nos campos principais do processo
+          const buscaProcesso =
+            p.numero_sei?.toLowerCase().includes(termoBusca) ||
+            p.assunto?.toLowerCase().includes(termoBusca) ||
+            p.interessado?.toLowerCase().includes(termoBusca) ||
+            p.resposta_final?.toLowerCase().includes(termoBusca);
+
+          // Busca nas observações e outros campos dos andamentos
+          const buscaAndamentos = p.andamentos?.some(
+            (andamento: any) =>
+              andamento.observacao?.toLowerCase().includes(termoBusca) ||
+              andamento.origem?.toLowerCase().includes(termoBusca) ||
+              andamento.destino?.toLowerCase().includes(termoBusca) ||
+              andamento.resposta?.toLowerCase().includes(termoBusca),
+          );
+
+          return buscaProcesso || buscaAndamentos;
+        });
+      }
+
+      // Filtro por interessado
+      if (interessadoFiltroStr.trim()) {
+        const interessadoBusca = interessadoFiltroStr.toLowerCase().trim();
+        dados = dados.filter((p: any) => {
+          return p.interessado?.toLowerCase().includes(interessadoBusca);
+        });
+      }
+
+      // Filtro por origem
+      if (origemStr.trim()) {
+        const origemBusca = origemStr.toLowerCase().trim();
+        dados = dados.filter((p: any) => {
+          return p.origem?.toLowerCase().includes(origemBusca);
+        });
+      }
+
+      if (vencendoHojeStr === "true") {
         dados = dados.filter((p: any) => {
           if (!p.prazo) return false;
           const prazo = new Date(p.prazo);
@@ -185,7 +243,7 @@ async function Home({
         });
       }
 
-      if (atrasados === "true") {
+      if (atrasadosStr === "true") {
         dados = dados.filter((p: any) => {
           if (!p.prazo) return false;
           const prazo = new Date(p.prazo);
@@ -194,7 +252,7 @@ async function Home({
         });
       }
 
-      if (concluidos === "true") {
+      if (concluidosStr === "true") {
         dados = dados.filter((p: any) => {
           // Um processo é considerado concluído se:
           // 1. Tem resposta final (data_resposta_final existe), OU
@@ -210,6 +268,26 @@ async function Home({
           return false;
         });
       }
+
+      // Aplicar paginação após filtragem
+      const startIndex = (Number(pagina) - 1) * Number(limite);
+      const endIndex = startIndex + Number(limite);
+      const dadosPaginados = dados.slice(startIndex, endIndex);
+
+      // Atualizar total com o número de itens filtrados
+      total = dados.length;
+      dados = dadosPaginados;
+
+      console.log(
+        "Após filtragem - dados.length:",
+        dados.length,
+        "total:",
+        total,
+        "pagina:",
+        pagina,
+        "limite:",
+        limite,
+      );
     }
 
     // Buscar total geral (sem filtros) para o dashboard
@@ -328,7 +406,8 @@ async function Home({
                 nome: "Buscar Processo",
                 tag: "busca",
                 tipo: 0,
-                placeholder: "Digite o número SEI ou assunto do processo...",
+                placeholder:
+                  "Buscar em número SEI, assunto, interessado, observações...",
               },
               {
                 nome: "Interessado",
@@ -346,7 +425,7 @@ async function Home({
             showSearchButton={false}
             showClearButton={false}
             autoSearch={true}
-            debounceMs={600}
+            debounceMs={300}
             clearOtherFiltersOnSearch={false}
           />
 
