@@ -8,17 +8,19 @@ export async function buscarTudo(
   limite: number = 10,
   busca: string = "",
   vencendoHoje: boolean = false,
-  atrasados: boolean = false
+  atrasados: boolean = false,
+  unidadeDestino?: string,
 ): Promise<IRespostaProcesso> {
   const baseURL = process.env.NEXT_PUBLIC_API_URL;
   try {
     const params = new URLSearchParams({
       pagina: pagina.toString(),
       limite: limite.toString(),
-      include: "unidadeInteressada,unidadeRemetente",
+      include: "unidadeInteressada,unidadeRemetente,unidadeDestino",
       ...(busca && { busca }),
       ...(vencendoHoje && { vencendoHoje: "true" }),
       ...(atrasados && { atrasados: "true" }),
+      ...(unidadeDestino && { unidadeDestino }),
     });
 
     const processos = await fetch(`${baseURL}processos?${params.toString()}`, {

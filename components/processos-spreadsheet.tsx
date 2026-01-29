@@ -776,6 +776,27 @@ export default function ProcessosSpreadsheet({
           },
         },
         {
+          field: "origem",
+          headerName: "Origem",
+          editable: true,
+          cellEditor: UnidadeAutocompleteEditor,
+          valueGetter: (params: any) => {
+            if (params.data?._isDetail) return "";
+            const processo = params.data as IProcesso;
+            return processo.origem || "";
+          },
+          valueFormatter: (params: any) => params.value || "",
+          valueSetter: (params: ValueSetterParams) => {
+            const selected = params.newValue as string;
+            if (selected) {
+              params.data.origem = selected;
+              return true;
+            }
+            return false;
+          },
+          width: 200,
+        },
+        {
           field: "interessado",
           headerName: "Interessado",
           editable: true,
@@ -852,21 +873,30 @@ export default function ProcessosSpreadsheet({
           width: 200,
         },
         {
-          field: "origem",
-          headerName: "Origem",
+          field: "unidadeDestino",
+          headerName: "Unidade Destinatária",
           editable: true,
           cellEditor: UnidadeAutocompleteEditor,
-          valueSetter: (params) => {
+          valueGetter: (params: any) => {
+            if (params.data?._isDetail) return "";
+            const processo = params.data as IProcesso;
+            if (processo.unidadeDestino) {
+              return `${processo.unidadeDestino.sigla} - ${processo.unidadeDestino.nome}`;
+            }
+            return "";
+          },
+          valueFormatter: (params: any) => params.value || "",
+          valueSetter: (params: ValueSetterParams) => {
             const selected = params.newValue as string;
             const sigla = selected?.split(" - ")[0];
             const unidade = unidades.find((u) => u.sigla === sigla);
             if (unidade) {
-              params.data.origem = unidade.sigla;
+              params.data.unidadeDestino = unidade;
               return true;
             }
             return false;
           },
-          width: 150,
+          width: 200,
         },
         {
           field: "data_recebimento",
@@ -1178,15 +1208,33 @@ export default function ProcessosSpreadsheet({
             dataToCreate.unidade_remetente_id =
               processoAtualizado.unidadeRemetente.id;
           } else if (
-            typeof processoAtualizado.unidadeRemetente === "string" &&
-            processoAtualizado.unidadeRemetente.includes(" - ")
+            typeof (processoAtualizado as any).unidadeRemetente === "string" &&
+            (processoAtualizado as any).unidadeRemetente.includes(" - ")
           ) {
-            const sigla = processoAtualizado.unidadeRemetente.split(" - ")[0];
+            const sigla = (processoAtualizado as any).unidadeRemetente.split(
+              " - ",
+            )[0];
             const unidade = unidades.find((u) => u.sigla === sigla);
             if (unidade) {
               dataToCreate.unidade_remetente_id = unidade.id;
             }
           }
+          // Não enviar unidade_destino_id na criação, só na atualização
+          // if (processoAtualizado.unidadeDestino?.id) {
+          //   dataToCreate.unidade_destino_id =
+          //     processoAtualizado.unidadeDestino.id;
+          // } else if (
+          //   typeof (processoAtualizado as any).unidadeDestino === "string" &&
+          //   (processoAtualizado as any).unidadeDestino.includes(" - ")
+          // ) {
+          //   const sigla = (processoAtualizado as any).unidadeDestino.split(
+          //     " - ",
+          //   )[0];
+          //   const unidade = unidades.find((u) => u.sigla === sigla);
+          //   if (unidade) {
+          //     dataToCreate.unidade_destino_id = unidade.id;
+          //   }
+          // }
           if (processoAtualizado.prazo) {
             dataToCreate.prazo = convertDateField(processoAtualizado.prazo);
           }
@@ -1196,6 +1244,38 @@ export default function ProcessosSpreadsheet({
           if (response.ok && response.data) {
             // Atualizar com o processo real do servidor
             const createdProcesso = response.data as IProcesso;
+            if (processoAtualizado.unidadeDestino) {
+              createdProcesso.unidadeDestino =
+                processoAtualizado.unidadeDestino;
+            }
+
+            // Se havia unidade destino definida, fazer atualização após criação
+            if (processoAtualizado.unidadeDestino?.id) {
+              try {
+                const updateData = {
+                  unidade_destino_id: processoAtualizado.unidadeDestino.id,
+                };
+                const updateResponse = await processo.server.atualizar(
+                  createdProcesso.id,
+                  updateData,
+                );
+                if (updateResponse.ok && updateResponse.data) {
+                  const updatedProcesso = updateResponse.data as IProcesso;
+                  if (processoAtualizado.unidadeDestino) {
+                    updatedProcesso.unidadeDestino =
+                      processoAtualizado.unidadeDestino;
+                  }
+                  // Atualizar o processo com os dados da atualização
+                  Object.assign(createdProcesso, updatedProcesso);
+                }
+              } catch (updateError) {
+                console.error(
+                  "Erro ao atualizar unidade destino após criação:",
+                  updateError,
+                );
+              }
+            }
+
             const updatedProcessos = processosLocal.map((p) =>
               p.id === processoAtualizado.id ? createdProcesso : p,
             );
@@ -1300,6 +1380,9 @@ export default function ProcessosSpreadsheet({
         } else if (field === "unidadeRemetente") {
           dataToUpdate.unidade_remetente_id =
             processoAtualizado.unidadeRemetente?.id;
+        } else if (field === "unidadeDestino") {
+          dataToUpdate.unidade_destino_id =
+            processoAtualizado.unidadeDestino?.id;
         } else if (
           field === "data_recebimento" ||
           field === "prazo" ||
@@ -1329,6 +1412,13 @@ export default function ProcessosSpreadsheet({
           // Atualizar versão após sucesso
           if (response.data) {
             const updatedProcesso = response.data as IProcesso;
+            if (
+              field === "unidadeDestino" &&
+              processoAtualizado.unidadeDestino
+            ) {
+              updatedProcesso.unidadeDestino =
+                processoAtualizado.unidadeDestino;
+            }
 
             versionsRef.current.set(
               processoAtualizado.id,
@@ -1385,6 +1475,17 @@ export default function ProcessosSpreadsheet({
                 atualizadoEm: updatedProcesso.atualizadoEm,
                 interessado: processoAtualizado.interessado,
                 interessado_id: processoAtualizado.interessado_id,
+              });
+            }
+            // Se salvou unidadeDestino, manter o valor localmente
+            if (
+              field === "unidadeDestino" &&
+              processoAtualizado.unidadeDestino
+            ) {
+              event.node.setData({
+                ...processoAtualizado,
+                atualizadoEm: updatedProcesso.atualizadoEm,
+                unidadeDestino: processoAtualizado.unidadeDestino,
               });
             }
           }
