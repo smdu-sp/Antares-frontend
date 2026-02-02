@@ -534,7 +534,7 @@ function AndamentosDetail({
       </div>
 
       <div
-        className={`ag-theme-alpine ${
+        className={`ag-theme-alpine w-full ${
           theme === "dark" || (theme === "system" && systemTheme === "dark")
             ? "dark"
             : ""
@@ -543,7 +543,6 @@ function AndamentosDetail({
           {
             height: `${gridHeight}px`,
             width: "100%",
-            minWidth: "1420px",
             overflowX: "auto",
             overflowY: "auto",
             ...(theme === "dark" ||
@@ -1609,9 +1608,8 @@ export default function ProcessosSpreadsheet({
         }`}
         style={
           {
-            height: "calc(100vh - 200px)",
+            height: "600px",
             width: "100%",
-            minWidth: "2170px",
             overflowX: "auto",
             overflowY: "auto",
             ...(theme === "dark" ||

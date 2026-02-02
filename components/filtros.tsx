@@ -211,14 +211,14 @@ export function Filtros({
             onChange={(e) =>
               setFiltros((prev) => ({ ...prev, [campo.tag]: e.target.value }))
             }
-            className="bg-background h-12 text-base pr-10"
+            className="bg-background h-10 sm:h-12 text-sm sm:text-base pr-10"
             placeholder={campo.placeholder}
           />
           <div className="absolute right-3 top-1/2 -translate-y-1/2">
             {autoSearch && isSearching ? (
-              <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
+              <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground animate-spin" />
             ) : (
-              <Search className="h-5 w-5 text-muted-foreground" />
+              <Search className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
             )}
           </div>
         </div>
@@ -270,7 +270,7 @@ export function Filtros({
               variant="outline"
               role="combobox"
               aria-expanded={open}
-              className="w-[200px] justify-between"
+              className="w-full sm:w-[180px] md:w-[200px] justify-between"
             >
               {value
                 ? valores.find((opcao) => opcao.label === value)?.label
@@ -278,7 +278,7 @@ export function Filtros({
               <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-[200px] p-0">
+          <PopoverContent className="w-[150px] sm:w-[180px] md:w-[200px] p-0">
             <Command>
               <CommandInput placeholder="Buscar opção" />
               <CommandList>
@@ -345,7 +345,7 @@ export function Filtros({
       <div className={"flex flex-col grid gap-2"} key={campo.tag}>
         <p>{campo.nome}</p>
         <DatePickerWithRange
-          className="w-full md:w-[300px]"
+          className="w-full sm:w-[150px] md:w-[300px]"
           value={date}
           onChange={handleSelecionaData}
           defaultMonth={date?.from ?? undefined}

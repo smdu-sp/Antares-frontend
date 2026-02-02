@@ -20,10 +20,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import FiltroVencendoHoje from "./processos/_components/filtro-vencendo-hoje";
 import FiltroAtrasados from "./processos/_components/filtro-atrasados";
 import FiltroConcluidos from "./processos/_components/filtro-concluidos";
-import ProcessosMetrics from "@/components/processos-metrics";
-import AndamentosMetrics from "@/components/andamentos-metrics";
 import ProcessosSpreadsheet from "@/components/processos-spreadsheet";
 import { BtnLimparFiltros } from "@/components/btn-limpar-filtros";
+import MetricsToggle from "./_components/metrics-toggle";
 
 export default async function HomeSuspense({
   searchParams,
@@ -373,32 +372,31 @@ async function Home({
 
   return (
     <div className="w-full flex justify-center relative pb-20 md:pb-14 h-full">
-      <div className="w-[95%] px-4">
+      <div className="w-full px-1.5 sm:px-4 md:px-8 min-w-0">
         {/* Header com Título */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 mt-6">
-          <h1 className="text-1xl md:text-3xl font-bold">Processos</h1>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4 mt-4 sm:gap-4 sm:mb-6 sm:mt-6">
+          <h1 className="text-lg sm:text-1xl md:text-3xl font-bold">
+            Processos
+          </h1>
         </div>
 
-        {/* Métricas de Processos */}
-        <ProcessosMetrics
-          total={totalProcessos}
-          vencendoHoje={totalVencendoHoje}
-          atrasados={totalAtrasados}
-          emAndamento={emAndamentoCount}
-        />
-        {/* Header com Título */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 mt-6">
-          <h1 className="text-1xl md:text-3xl font-bold">Andamentos</h1>
-        </div>
-        {/* Métricas de Andamentos */}
-        <AndamentosMetrics
-          emAndamento={andamentosEmAndamento}
-          vencidos={andamentosVencidos}
-          vencendoHoje={andamentosVencendoHoje}
-          concluidos={andamentosConcluidos}
+        {/* Métricas com Toggle */}
+        <MetricsToggle
+          processos={{
+            total: totalProcessos,
+            vencendoHoje: totalVencendoHoje,
+            atrasados: totalAtrasados,
+            emAndamento: emAndamentoCount,
+          }}
+          andamentos={{
+            emAndamento: andamentosEmAndamento,
+            vencidos: andamentosVencidos,
+            vencendoHoje: andamentosVencendoHoje,
+            concluidos: andamentosConcluidos,
+          }}
         />
 
-        <div className="flex flex-col gap-4 my-5 w-full">
+        <div className="flex flex-col gap-2 my-3 sm:gap-4 sm:my-5 w-full min-w-0">
           {/* Barra de Busca com Auto-Search */}
           <Filtros
             camposFiltraveis={[
@@ -430,11 +428,11 @@ async function Home({
           />
 
           {/* Filtros Rápidos com Botão Limpar */}
-          <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center flex-wrap">
-            <span className="text-sm font-medium text-muted-foreground">
+          <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-3 items-stretch sm:items-center flex-wrap min-w-0">
+            <span className="text-xs sm:text-sm font-medium text-muted-foreground flex-shrink-0">
               Filtros rápidos:
             </span>
-            <div className="flex flex-wrap gap-2 flex-1">
+            <div className="flex flex-wrap gap-1 sm:gap-2 flex-1 min-w-0">
               <FiltroVencendoHoje />
               <FiltroAtrasados />
               <FiltroConcluidos />
