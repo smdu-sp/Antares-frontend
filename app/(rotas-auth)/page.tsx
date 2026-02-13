@@ -61,7 +61,7 @@ async function Home({
   const {
     busca = "",
     interessado: interessadoFiltro = "",
-    origem = "",
+    unidade: unidadeFiltro = "",
     vencendoHoje = "",
     atrasados = "",
     concluidos = "",
@@ -72,7 +72,9 @@ async function Home({
   const interessadoFiltroStr = Array.isArray(interessadoFiltro)
     ? interessadoFiltro[0] || ""
     : interessadoFiltro;
-  const origemStr = Array.isArray(origem) ? origem[0] || "" : origem;
+  const unidadeFiltroStr = Array.isArray(unidadeFiltro)
+    ? unidadeFiltro[0] || ""
+    : unidadeFiltro;
   const vencendoHojeStr = Array.isArray(vencendoHoje)
     ? vencendoHoje[0] || ""
     : vencendoHoje;
@@ -116,8 +118,6 @@ async function Home({
 
         // Filtrar apenas processos ativos (soft delete)
         dados = dados.filter((p) => p.ativo === true);
-
-        console.log("dados.length:", dados.length, "dados:", dados);
       }
     }
 
@@ -127,9 +127,6 @@ async function Home({
     const interessadosResult = await interessado.query.listaCompleta(
       session.access_token,
     );
-
-    console.log("unidadesResponse:", unidadesResponse);
-    console.log("interessadosResult:", interessadosResult);
 
     let unidadesMap = new Map<string, IUnidade>();
     if (unidadesResponse.ok && unidadesResponse.data) {
@@ -143,9 +140,6 @@ async function Home({
       interessadosLista = interessadosResult;
       interessadosMap = new Map(interessadosResult.map((i) => [i.id, i]));
     }
-
-    console.log("After mapping - unidadesLista:", unidadesLista);
-    console.log("After mapping - interessadosLista:", interessadosLista);
 
     // Enriquecer processos com dados de interessados e unidades (se houver processos)
     if (dados.length > 0) {
@@ -225,11 +219,21 @@ async function Home({
         });
       }
 
-      // Filtro por origem
-      if (origemStr.trim()) {
-        const origemBusca = origemStr.toLowerCase().trim();
+      // Filtro por unidade (remetente ou destinatária)
+      if (unidadeFiltroStr.trim()) {
+        const unidadeBusca = unidadeFiltroStr.toLowerCase().trim();
         dados = dados.filter((p: any) => {
-          return p.origem?.toLowerCase().includes(origemBusca);
+          // Busca na unidade remetente (nome ou sigla)
+          const unidadeRemBusca =
+            p.unidadeRemetente?.nome?.toLowerCase().includes(unidadeBusca) ||
+            p.unidadeRemetente?.sigla?.toLowerCase().includes(unidadeBusca);
+
+          // Busca na unidade destinatária (nome ou sigla)
+          const unidadeDestBusca =
+            p.unidadeDestino?.nome?.toLowerCase().includes(unidadeBusca) ||
+            p.unidadeDestino?.sigla?.toLowerCase().includes(unidadeBusca);
+
+          return unidadeRemBusca || unidadeDestBusca;
         });
       }
 
@@ -244,6 +248,17 @@ async function Home({
 
       if (atrasadosStr === "true") {
         dados = dados.filter((p: any) => {
+          // Excluir processos concluídos
+          if (p.data_resposta_final || p.resposta_final) {
+            return false;
+          }
+          if (p.andamentos && p.andamentos.length > 0) {
+            if (p.andamentos.every((a: any) => a.status === "CONCLUIDO")) {
+              return false;
+            }
+          }
+
+          // Verificar se tem prazo vencido
           if (!p.prazo) return false;
           const prazo = new Date(p.prazo);
           prazo.setHours(0, 0, 0, 0);
@@ -276,17 +291,6 @@ async function Home({
       // Atualizar total com o número de itens filtrados
       total = dados.length;
       dados = dadosPaginados;
-
-      console.log(
-        "Após filtragem - dados.length:",
-        dados.length,
-        "total:",
-        total,
-        "pagina:",
-        pagina,
-        "limite:",
-        limite,
-      );
     }
 
     // Buscar total geral (sem filtros) para o dashboard
@@ -358,18 +362,6 @@ async function Home({
   // Calcular "Em Andamento" = Total - Atrasados (sempre valores reais)
   const emAndamentoCount = Math.max(0, totalProcessos - totalAtrasados);
 
-  // Debug
-  console.log(
-    "Home page rendered - unidadesLista:",
-    unidadesLista.length,
-    unidadesLista,
-  );
-  console.log(
-    "Home page rendered - interessadosLista:",
-    interessadosLista.length,
-    interessadosLista,
-  );
-
   return (
     <div className="w-full flex justify-center relative pb-20 md:pb-14 h-full">
       <div className="w-full px-1.5 sm:px-4 md:px-8 min-w-0">
@@ -414,10 +406,10 @@ async function Home({
                 placeholder: "Filtrar por interessado...",
               },
               {
-                nome: "Unidade de Origem",
-                tag: "origem",
+                nome: "Unidade (Remetente/Destinatária)",
+                tag: "unidade",
                 tipo: 0,
-                placeholder: "Filtrar por unidade de origem...",
+                placeholder: "Filtrar por unidade remetente ou destinatária...",
               },
             ]}
             showSearchButton={false}

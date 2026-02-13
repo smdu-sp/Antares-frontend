@@ -76,8 +76,14 @@ function AndamentosDetail({
           processo.id,
         );
         if (response.ok && response.data) {
-          // Não precisa converter - valueGetter das colunas fará isso
-          setAndamentos(Array.isArray(response.data) ? response.data : []);
+          // Mapear 'resposta' do backend para 'data_resposta' do tipo
+          const andamentosComMapeamento = (
+            Array.isArray(response.data) ? response.data : []
+          ).map((a: any) => ({
+            ...a,
+            data_resposta: a.resposta || a.data_resposta,
+          }));
+          setAndamentos(andamentosComMapeamento);
         }
       } catch (error) {
         // Erro ao carregar andamentos
@@ -232,6 +238,16 @@ function AndamentosDetail({
         if (dataToSave.resposta)
           dataToSave.resposta = convertDateField(dataToSave.resposta);
 
+        // Se data_resposta foi inserida e o status não é CONCLUIDO, marcar como CONCLUIDO automaticamente
+        if (
+          field === "data_resposta" &&
+          event.newValue &&
+          dataToSave.status !== StatusAndamento.CONCLUIDO
+        ) {
+          dataToSave.status = StatusAndamento.CONCLUIDO;
+          andamentoAtualizado.status = StatusAndamento.CONCLUIDO;
+        }
+
         // IMPORTANTE: Remover campos null/undefined do payload
         // Alguns backends rejeitam null, então é melhor não enviar o campo
         Object.keys(dataToSave).forEach((key) => {
@@ -268,6 +284,21 @@ function AndamentosDetail({
             dataToSave,
           );
           if (response.ok) {
+            // Atualizar o estado local com os dados salvos
+            const updatedAndamentos = andamentos.map((a) => {
+              if (a.id === andamentoAtualizado.id) {
+                return {
+                  ...a,
+                  status: dataToSave.status || a.status,
+                  data_resposta:
+                    dataToSave.data_resposta !== undefined
+                      ? dataToSave.data_resposta
+                      : a.data_resposta,
+                };
+              }
+              return a;
+            });
+            setAndamentos(updatedAndamentos);
             toast.success("Andamento atualizado com sucesso");
           }
         }
