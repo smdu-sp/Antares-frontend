@@ -30,6 +30,7 @@ export interface IAndamento {
   conclusao?: Date | null;
   status: StatusAndamento;
   data_resposta?: Date | null;
+  assunto?: string | null;
   observacao?: string | null;
   ativo: boolean;
   criadoEm: Date;
@@ -101,6 +102,7 @@ export interface ICreateAndamento {
   data_envio?: string;
   prazo: string;
   status?: StatusAndamento;
+  assunto?: string;
   resposta?: string;
   observacao?: string;
 }
@@ -113,6 +115,7 @@ export interface IUpdateAndamento {
   prorrogacao?: string;
   conclusao?: string;
   status?: StatusAndamento;
+  assunto?: string;
   resposta?: string;
   observacao?: string;
 }

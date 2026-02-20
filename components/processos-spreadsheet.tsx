@@ -27,16 +27,17 @@ import "ag-grid-community/styles/ag-theme-alpine.css";
 import { IProcesso, IAndamento, StatusAndamento } from "@/types/processo";
 import { IUnidade } from "@/types/unidade";
 import { IInteressado } from "@/types/interessado";
-import * as processo from "@/services/processos";
+import * as processoService from "@/services/processos";
 import * as andamento from "@/services/andamentos";
 import * as interessado from "@/services/interessados";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Edit2, Check, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import DateCellEditor from "@/components/date-cell-editor";
 import ModalDeleteProcesso from "@/app/(rotas-auth)/processos/_components/modal-delete-processo";
 import ModalDeleteAndamento from "@/app/(rotas-auth)/processos/_components/modal-delete-andamento";
@@ -61,6 +62,9 @@ function AndamentosDetail({
   const [andamentos, setAndamentos] = useState<IAndamento[]>([]);
   const [loading, setLoading] = useState(true);
   const [loaded, setLoaded] = useState(false);
+  const [isEditingAssunto, setIsEditingAssunto] = useState(false);
+  const [novoAssunto, setNovoAssunto] = useState(processo.assunto);
+  const [isSavingAssunto, setIsSavingAssunto] = useState(false);
   const gridRef = useRef<AgGridReact>(null);
   const router = useRouter();
   const savingRef = useRef<Set<string>>(new Set()); // Prevenir salvamentos duplicados
@@ -111,6 +115,46 @@ function AndamentosDetail({
       _isNew: true,
     };
     setAndamentos([...andamentos, novoAndamento]);
+  };
+
+  const handleSaveAssunto = async () => {
+    if (!novoAssunto.trim()) {
+      toast.error("O assunto não pode estar vazio");
+      return;
+    }
+
+    if (novoAssunto === processo.assunto) {
+      setIsEditingAssunto(false);
+      return;
+    }
+
+    setIsSavingAssunto(true);
+    try {
+      const response = await processoService.server.atualizar(processo.id, {
+        assunto: novoAssunto.trim(),
+      });
+
+      if (response.ok) {
+        toast.success("Assunto atualizado com sucesso");
+        setIsEditingAssunto(false);
+        router.refresh();
+      } else {
+        toast.error("Erro ao atualizar assunto", {
+          description: response.error,
+        });
+        setNovoAssunto(processo.assunto);
+      }
+    } catch (error) {
+      toast.error("Erro ao atualizar assunto");
+      setNovoAssunto(processo.assunto);
+    } finally {
+      setIsSavingAssunto(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setNovoAssunto(processo.assunto);
+    setIsEditingAssunto(false);
   };
 
   const onCellValueChanged = useCallback(
@@ -203,6 +247,8 @@ function AndamentosDetail({
               : andamentoAtualizado.prorrogacao,
           status:
             field === "status" ? event.newValue : andamentoAtualizado.status,
+          assunto:
+            field === "assunto" ? event.newValue : andamentoAtualizado.assunto,
           resposta:
             field === "data_resposta"
               ? event.newValue
@@ -338,6 +384,18 @@ function AndamentosDetail({
           return true;
         },
         width: 200,
+      },
+      {
+        field: "assunto",
+        headerName: "Assunto",
+        editable: true,
+        width: 300,
+        wrapText: true,
+        autoHeight: true,
+        valueSetter: (params) => {
+          params.data.assunto = params.newValue || null;
+          return true;
+        },
       },
       {
         field: "destino",
@@ -562,6 +620,60 @@ function AndamentosDetail({
         >
           + Novo Andamento
         </Button>
+      </div>
+
+      {/* Assunto do Processo */}
+      <div className="mb-4 p-3 rounded-md bg-opacity-50 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900">
+        <p className="text-xs font-medium text-muted-foreground mb-1">Assunto do Processo:</p>
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            {isEditingAssunto ? (
+              <Textarea
+                value={novoAssunto}
+                onChange={(e) => setNovoAssunto(e.target.value)}
+                placeholder="Digite o novo assunto..."
+                className="text-sm font-medium min-h-16 resize-none"
+                autoFocus
+              />
+            ) : (
+              <p className="text-sm whitespace-pre-wrap break-words font-medium">
+                {processo.assunto}
+              </p>
+            )}
+          </div>
+          {!isEditingAssunto && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsEditingAssunto(true)}
+              className="flex-shrink-0"
+            >
+              <Edit2 className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+        
+        {isEditingAssunto && (
+          <div className="flex gap-2 justify-end mt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCancelEdit}
+              disabled={isSavingAssunto}
+            >
+              <X className="h-4 w-4 mr-1" />
+              Cancelar
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSaveAssunto}
+              disabled={isSavingAssunto}
+            >
+              <Check className="h-4 w-4 mr-1" />
+              {isSavingAssunto ? "Salvando..." : "Salvar"}
+            </Button>
+          </div>
+        )}
       </div>
 
       <div
@@ -1269,7 +1381,7 @@ export default function ProcessosSpreadsheet({
             dataToCreate.prazo = convertDateField(processoAtualizado.prazo);
           }
 
-          const response = await processo.server.criar(dataToCreate);
+          const response = await processoService.server.criar(dataToCreate);
 
           if (response.ok && response.data) {
             // Atualizar com o processo real do servidor
@@ -1285,7 +1397,7 @@ export default function ProcessosSpreadsheet({
                 const updateData = {
                   unidade_destino_id: processoAtualizado.unidadeDestino.id,
                 };
-                const updateResponse = await processo.server.atualizar(
+                const updateResponse = await processoService.server.atualizar(
                   createdProcesso.id,
                   updateData,
                 );
@@ -1427,7 +1539,7 @@ export default function ProcessosSpreadsheet({
           dataToUpdate[field as string] = newValue;
         }
 
-        const response = await processo.server.atualizar(
+        const response = await processoService.server.atualizar(
           processoAtualizado.id,
           dataToUpdate,
         );
