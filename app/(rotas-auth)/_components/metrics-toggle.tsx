@@ -27,7 +27,7 @@ export default function MetricsToggle({
   processos,
   andamentos,
 }: MetricsToggleProps) {
-  const [showMetrics, setShowMetrics] = useState(true);
+  const [showMetrics, setShowMetrics] = useState(false);
 
   const toggleMetrics = useCallback(() => {
     setShowMetrics((prev) => !prev);

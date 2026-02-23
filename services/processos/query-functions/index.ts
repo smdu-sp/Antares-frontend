@@ -5,3 +5,4 @@ export * from "./buscar-por-id";
 export * from "./contar-vencendo-hoje";
 export * from "./contar-atrasados";
 export * from "./contar-concluidos";
+export * from "./contar-em-andamento";

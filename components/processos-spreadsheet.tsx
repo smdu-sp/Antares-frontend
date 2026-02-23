@@ -29,12 +29,20 @@ import { IUnidade } from "@/types/unidade";
 import { IInteressado } from "@/types/interessado";
 import * as processoService from "@/services/processos";
 import * as andamento from "@/services/andamentos";
-import * as interessado from "@/services/interessados";
+import * as interessadoService from "@/services/interessados";
+import { salvarPreferencia, buscarPreferencia } from "@/services/preferencias";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronDown, ChevronRight, Edit2, Check, X } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  Edit2,
+  Check,
+  X,
+  FileDown,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -43,6 +51,10 @@ import ModalDeleteProcesso from "@/app/(rotas-auth)/processos/_components/modal-
 import ModalDeleteAndamento from "@/app/(rotas-auth)/processos/_components/modal-delete-andamento";
 import InteressadoAutocompleteCellEditor from "@/components/interessado-autocomplete-cell-editor";
 import UnidadeAutocompleteEditor from "@/components/unidade-autocomplete-editor";
+import { ExportAndamentoButton } from "@/components/export-andamento-button";
+import { ExportProcessoButton } from "@/components/export-processo-button";
+import { ExportProcessosEmLote } from "@/components/export-processos-em-lote";
+import { useSelectedProcessos } from "@/hooks/use-selected-processos";
 
 // Registrar todos os módulos da comunidade AG-Grid
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -544,7 +556,7 @@ function AndamentosDetail({
       {
         headerName: "Ações",
         field: "acoes",
-        width: 80,
+        width: 120,
         sortable: false,
         filter: false,
         editable: false,
@@ -559,7 +571,8 @@ function AndamentosDetail({
           };
 
           return (
-            <div className="flex items-center justify-center h-full">
+            <div className="flex items-center justify-center h-full gap-1">
+              <ExportAndamentoButton andamentoId={andamentoData.id} />
               <ModalDeleteAndamento
                 andamento={andamentoData}
                 onSuccess={handleSuccess}
@@ -624,7 +637,9 @@ function AndamentosDetail({
 
       {/* Assunto do Processo */}
       <div className="mb-4 p-3 rounded-md bg-opacity-50 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900">
-        <p className="text-xs font-medium text-muted-foreground mb-1">Assunto do Processo:</p>
+        <p className="text-xs font-medium text-muted-foreground mb-1">
+          Assunto do Processo:
+        </p>
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
             {isEditingAssunto ? (
@@ -652,7 +667,7 @@ function AndamentosDetail({
             </Button>
           )}
         </div>
-        
+
         {isEditingAssunto && (
           <div className="flex gap-2 justify-end mt-2">
             <Button
@@ -732,25 +747,49 @@ interface ProcessosSpreadsheetProps {
   processos: IProcesso[];
   unidades: IUnidade[];
   interessados: IInteressado[];
+  busca?: string;
+  interessado?: string;
+  unidade?: string;
+  vencendoHoje?: boolean;
+  atrasados?: boolean;
+  concluidos?: boolean;
 }
 
 export default function ProcessosSpreadsheet({
   processos,
   unidades,
   interessados,
+  busca = "",
+  interessado = "",
+  unidade = "",
+  vencendoHoje = false,
+  atrasados = false,
+  concluidos = false,
 }: ProcessosSpreadsheetProps) {
   const gridRef = useRef<AgGridReact>(null);
   const { data: session } = useSession();
   const router = useRouter();
   const { theme, systemTheme } = useTheme();
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const expandedRowsRef = useRef<Set<string>>(new Set());
   const [processosLocal, setProcessosLocal] = useState<IProcesso[]>(processos);
+  const { selectedIds, toggleSelect, toggleSelectAll, isSelected } =
+    useSelectedProcessos();
 
   // Mapa de versões para controle de conflito
   const versionsRef = useRef<Map<string, Date>>(new Map());
 
   // Prevenir salvamentos duplicados
   const savingRef = useRef<Set<string>>(new Set());
+
+  // Flag para indicar que estamos restaurando o estado (não salvar durante restauração)
+  const isRestoringRef = useRef<boolean>(false);
+
+  // Flag para indicar que já restauramos (evitar restaurar múltiplas vezes)
+  const hasRestoredRef = useRef<boolean>(false);
+
+  // Timer para debounce do salvamento
+  const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Atualizar processos locais quando props mudar
   const initializedRef = useRef(false);
@@ -771,6 +810,11 @@ export default function ProcessosSpreadsheet({
       initializedRef.current = true;
     }
   }, [processos]);
+
+  // Sincronizar ref com state
+  useEffect(() => {
+    expandedRowsRef.current = expandedRows;
+  }, [expandedRows]);
 
   // Criar dados da linha incluindo linhas de detalhe
   const rowData = useMemo(() => {
@@ -797,6 +841,75 @@ export default function ProcessosSpreadsheet({
       }
     });
   }, [processosLocal]);
+
+  // Forçar atualização visual dos checkboxes quando seleção muda
+  useEffect(() => {
+    if (gridRef.current?.api) {
+      gridRef.current.api.redrawRows();
+    }
+  }, [selectedIds]);
+
+  // Cleanup do timer de salvamento ao desmontar
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Restaurar preferências quando a sessão estiver disponível
+  useEffect(() => {
+    async function restaurarPreferencias() {
+      if (!gridRef.current?.api || !session?.usuario) {
+        return;
+      }
+
+      // Evitar restaurar múltiplas vezes
+      if (isRestoringRef.current || hasRestoredRef.current) {
+        return;
+      }
+
+      try {
+        const preferencia = await buscarPreferencia("ag-grid-column-state");
+
+        if (preferencia && preferencia.valor) {
+          const columnState = preferencia.valor;
+          
+          // Remover sorting ao restaurar para não quebrar a expansão de linhas
+          const columnStateWithoutSort = columnState.map((col: any) => {
+            const { sort, sortIndex, ...rest } = col;
+            return rest;
+          });
+
+          // Delay para garantir que tudo estabilizou
+          setTimeout(() => {
+            if (!gridRef.current?.api) return;
+
+            isRestoringRef.current = true;
+            hasRestoredRef.current = true;
+
+            gridRef.current.api.applyColumnState({
+              state: columnStateWithoutSort,
+              applyOrder: true,
+            });
+
+            gridRef.current.api.refreshHeader();
+
+            // Manter bloqueio por mais tempo para evitar sobrescritas
+            setTimeout(() => {
+              isRestoringRef.current = false;
+            }, 2000); // 2 segundos de bloqueio
+          }, 1000); // 1 segundo de delay inicial
+        }
+      } catch (error) {
+        console.error("❌ Erro ao restaurar preferências:", error);
+        isRestoringRef.current = false;
+      }
+    }
+
+    restaurarPreferencias();
+  }, [session?.usuario, session?.id]); // Executa quando sessão fica disponível
 
   // Debug: verificar se os dados estão chegando
   useEffect(() => {
@@ -835,11 +948,56 @@ export default function ProcessosSpreadsheet({
       [
         {
           headerName: "",
+          field: "checkbox",
+          width: 50,
+          pinned: "left" as const,
+          lockPosition: true,
+          headerComponent: () => {
+            const allSelected =
+              processosLocal.length > 0 &&
+              processosLocal.every((p) => isSelected(p.id));
+
+            return (
+              <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={() =>
+                  toggleSelectAll(processosLocal.map((p) => p.id))
+                }
+                title={allSelected ? "Deselecionar tudo" : "Selecionar tudo"}
+                className="cursor-pointer"
+                style={{ width: "14px", height: "14px" }}
+              />
+            );
+          },
+          cellRenderer: (params: ICellRendererParams) => {
+            if (params.data?._isDetail) return null;
+
+            const processo = params.data as IProcesso;
+            const checked = isSelected(processo.id);
+
+            return (
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={() => toggleSelect(processo.id)}
+                className="cursor-pointer"
+                style={{ width: "14px", height: "14px" }}
+              />
+            );
+          },
+          sortable: false,
+          filter: false,
+          editable: false,
+        },
+        {
+          headerName: "",
           field: "expand",
           width: 50,
           pinned: "left" as const,
+          lockPosition: true,
           headerComponent: () => {
-            const allExpanded = expandedRows.size === processosLocal.length;
+            const allExpanded = expandedRowsRef.current.size === processosLocal.length;
 
             return (
               <button
@@ -866,18 +1024,24 @@ export default function ProcessosSpreadsheet({
             if (params.data?._isDetail) return null;
 
             const processo = params.data as IProcesso;
-            const isExpanded = expandedRows.has(processo.id);
+            const isExpanded = expandedRowsRef.current.has(processo.id);
 
             return (
               <button
                 onClick={() => {
-                  const newExpanded = new Set(expandedRows);
-                  if (isExpanded) {
+                  const newExpanded = new Set(expandedRowsRef.current);
+                  if (expandedRowsRef.current.has(processo.id)) {
                     newExpanded.delete(processo.id);
                   } else {
                     newExpanded.add(processo.id);
                   }
                   setExpandedRows(newExpanded);
+                  // Forçar atualização da grid após mudança
+                  setTimeout(() => {
+                    if (gridRef.current?.api) {
+                      gridRef.current.api.refreshCells({ force: true });
+                    }
+                  }, 0);
                 }}
                 className="flex items-center justify-center w-full h-full hover:bg-gray-100"
               >
@@ -1201,7 +1365,7 @@ export default function ProcessosSpreadsheet({
         {
           headerName: "Ações",
           field: "acoes",
-          width: 80,
+          width: 120,
           pinned: "right" as const,
           sortable: false,
           filter: false,
@@ -1212,20 +1376,16 @@ export default function ProcessosSpreadsheet({
             const processo = params.data as IProcesso;
 
             return (
-              <div className="flex items-center justify-center h-full">
+              <div className="flex items-center justify-center h-full gap-1">
+                <ExportProcessoButton processoId={processo.id} />
                 <ModalDeleteProcesso id={processo.id} />
               </div>
             );
           },
         },
       ] as ColDef[],
-    [
-      unidadesOptions,
-      unidades,
-      interessadosOptions,
-      interessados,
-      expandedRows,
-    ],
+    [], // SEM dependências - columnDefs só deve ser criado UMA vez
+    // Os componentes internos (headerComponent, cellRenderer) já capturam valores atuais quando executam
   );
 
   const defaultColDef = useMemo<ColDef>(
@@ -1314,7 +1474,7 @@ export default function ProcessosSpreadsheet({
                 valor: processoAtualizado.interessado,
               };
               const respostaInteressado =
-                await interessado.server.criar(novoInteressado);
+                await interessadoService.server.criar(novoInteressado);
               if (respostaInteressado.ok && respostaInteressado.data) {
                 interessadoIdFinal = respostaInteressado.data.id;
                 toast.success("Novo interessado criado");
@@ -1497,7 +1657,7 @@ export default function ProcessosSpreadsheet({
               };
 
               const respostaInteressado =
-                await interessado.server.criar(novoInteressado);
+                await interessadoService.server.criar(novoInteressado);
 
               if (respostaInteressado.ok && respostaInteressado.data) {
                 // Usar o ID real do interessado criado
@@ -1651,9 +1811,46 @@ export default function ProcessosSpreadsheet({
     [session?.access_token, router, processosLocal],
   );
 
-  const onGridReady = useCallback((params: GridReadyEvent) => {
-    // Grid pronto
-  }, []);
+  const saveColumnState = useCallback(async () => {
+    // Não salvar se estamos restaurando o estado
+    if (isRestoringRef.current) {
+      return;
+    }
+
+    // Cancelar timer anterior se existir (debounce)
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+    }
+
+    // Agendar salvamento após 1 segundo sem mudanças
+    saveTimerRef.current = setTimeout(async () => {
+      if (gridRef.current?.api && session?.usuario) {
+        const columnState = gridRef.current.api.getColumnState();
+        
+        // Remover sorting para não quebrar a expansão de linhas
+        const columnStateWithoutSort = columnState.map((col: any) => {
+          const { sort, sortIndex, ...rest } = col;
+          return rest;
+        });
+        
+        try {
+          await salvarPreferencia({
+            chave: "ag-grid-column-state",
+            valor: columnStateWithoutSort,
+          });
+        } catch (error) {
+          console.error("Erro ao salvar estado das colunas:", error);
+        }
+      }
+    }, 1000); // Debounce de 1 segundo
+  }, [session?.usuario, session?.id]);
+
+  const onGridReady = useCallback(
+    async (params: GridReadyEvent) => {
+      // A restauração agora é feita pelo useEffect que monitora a sessão
+    },
+    [session?.usuario, session?.id],
+  );
 
   const isProcessoConcluido = useCallback((processo: IProcesso) => {
     // Um processo é concluído se tem data_resposta_final ou resposta_final
@@ -1735,7 +1932,17 @@ export default function ProcessosSpreadsheet({
 
   return (
     <div className="w-full">
-      <div className="flex justify-end mb-4">
+      <div className="flex justify-between items-center mb-4 gap-2">
+        <ExportProcessosEmLote
+          selectedIds={selectedIds}
+          totalSelecionados={selectedIds.length}
+          busca={busca}
+          interessado={interessado}
+          unidade={unidade}
+          vencendoHoje={vencendoHoje}
+          atrasados={atrasados}
+          concluidos={concluidos}
+        />
         <Button
           onClick={adicionarProcesso}
           className="bg-green-600 hover:bg-green-700 text-white"
@@ -1787,9 +1994,13 @@ export default function ProcessosSpreadsheet({
           onCellValueChanged={onCellValueChanged}
           onGridReady={onGridReady}
           getRowId={getRowId}
-          animateRows={true}
+          animateRows={false}
           singleClickEdit={true}
           stopEditingWhenCellsLoseFocus={true}
+          onColumnMoved={saveColumnState}
+          onColumnResized={saveColumnState}
+          onColumnVisible={saveColumnState}
+          onColumnPinned={saveColumnState}
           pagination={false}
           suppressPaginationPanel={true}
           suppressHorizontalScroll={false}

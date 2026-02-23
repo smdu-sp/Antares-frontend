@@ -20,7 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import FiltroVencendoHoje from "./processos/_components/filtro-vencendo-hoje";
 import FiltroAtrasados from "./processos/_components/filtro-atrasados";
 import FiltroConcluidos from "./processos/_components/filtro-concluidos";
-import ProcessosSpreadsheet from "@/components/processos-spreadsheet";
+import { ProcessosGrid } from "./_components/processos-grid";
 import { BtnLimparFiltros } from "@/components/btn-limpar-filtros";
 import MetricsToggle from "./_components/metrics-toggle";
 
@@ -90,6 +90,8 @@ async function Home({
   let totalVencendoHoje = 0;
   let totalAtrasados = 0;
   let totalProcessos = 0;
+  let totalConcluidos = 0;
+  let totalEmAndamento = 0;
   let andamentosEmAndamento = 0;
   let andamentosVencidos = 0;
   let andamentosVencendoHoje = 0;
@@ -309,9 +311,11 @@ async function Home({
     }
 
     // Buscar métricas específicas
-    const [vencendoHojeRes, atrasadosRes] = await Promise.all([
+    const [vencendoHojeRes, atrasadosRes, concluidosRes, emAndamentoRes] = await Promise.all([
       processo.query.contarVencendoHoje(session.access_token),
       processo.query.contarAtrasados(session.access_token),
+      processo.query.contarConcluidos(session.access_token),
+      processo.query.contarEmAndamento(session.access_token),
     ]);
 
     if (vencendoHojeRes.ok && vencendoHojeRes.data !== null) {
@@ -320,12 +324,20 @@ async function Home({
     if (atrasadosRes.ok && atrasadosRes.data !== null) {
       totalAtrasados = atrasadosRes.data;
     }
+    if (concluidosRes.ok && concluidosRes.data !== null) {
+      totalConcluidos = concluidosRes.data;
+    }
+    if (emAndamentoRes.ok && emAndamentoRes.data !== null) {
+      totalEmAndamento = emAndamentoRes.data;
+    }
 
     // Buscar andamentos para calcular métricas
+    // Nota: Busca um limite alto para pegar todos os andamentos disponíveis
+    // Idealmente, o backend deveria ter endpoints específicos de contagem como tem para processos
     const andamentosResponse = await andamento.query.buscarTudo(
       session.access_token,
       1,
-      1000,
+      999999,
     );
 
     if (andamentosResponse.ok && andamentosResponse.data) {
@@ -359,9 +371,6 @@ async function Home({
     }
   }
 
-  // Calcular "Em Andamento" = Total - Atrasados (sempre valores reais)
-  const emAndamentoCount = Math.max(0, totalProcessos - totalAtrasados);
-
   return (
     <div className="w-full flex justify-center relative pb-20 md:pb-14 h-full">
       <div className="w-full px-1.5 sm:px-4 md:px-8 min-w-0">
@@ -378,7 +387,7 @@ async function Home({
             total: totalProcessos,
             vencendoHoje: totalVencendoHoje,
             atrasados: totalAtrasados,
-            emAndamento: emAndamentoCount,
+            emAndamento: totalEmAndamento,
           }}
           andamentos={{
             emAndamento: andamentosEmAndamento,
@@ -433,15 +442,23 @@ async function Home({
           </div>
         </div>
 
-        {/* Visualização de Processos */}
-        <ProcessosSpreadsheet
+        {/* Visualização de Processos com Seleção */}
+        <ProcessosGrid
           processos={dados}
           unidades={unidadesLista}
           interessados={interessadosLista}
+          busca={buscaStr}
+          interessado={interessadoFiltroStr}
+          unidade={unidadeFiltroStr}
+          vencendoHoje={vencendoHojeStr === "true"}
+          atrasados={atrasadosStr === "true"}
+          concluidos={concluidosStr === "true"}
         />
 
         {dados && dados.length > 0 && (
-          <Pagination total={+total} pagina={+pagina} limite={+limite} />
+          <div className="mt-4 sm:mt-6">
+            <Pagination total={+total} pagina={+pagina} limite={+limite} />
+          </div>
         )}
       </div>
     </div>
