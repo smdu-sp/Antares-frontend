@@ -1,10 +1,12 @@
 /** @format */
 
 import { IProcesso, IRespostaProcesso } from "@/types/processo";
+import { buildAuthHeaders } from "@/lib/http/auth-headers";
 
 export async function buscarPorId(
   access_token: string,
-  id: string
+  id: string,
+  grupoAtivoId?: string,
 ): Promise<IRespostaProcesso> {
   const baseURL = process.env.NEXT_PUBLIC_API_URL;
   try {
@@ -12,12 +14,9 @@ export async function buscarPorId(
       `${baseURL}processos/${id}?include=unidadeInteressada,unidadeRemetente`,
       {
         method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${access_token}`,
-        },
+        headers: buildAuthHeaders(access_token, grupoAtivoId),
         next: { tags: ["processos"], revalidate: 120 },
-      }
+      },
     );
     const data = await processo.json();
     if (processo.status === 200)

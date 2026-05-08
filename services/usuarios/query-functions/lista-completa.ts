@@ -1,18 +1,17 @@
 /** @format */
 
 import { IRespostaUsuario, IUsuario } from "@/types/usuario";
+import { buildAuthHeaders } from "@/lib/http/auth-headers";
 
 export async function listaCompleta(
   access_token: string,
+  grupoAtivoId?: string,
 ): Promise<IRespostaUsuario> {
   const baseURL = process.env.NEXT_PUBLIC_API_URL;
   try {
     const alvaraTipos = await fetch(`${baseURL}usuarios/lista-completa`, {
       method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${access_token}`,
-      },
+      headers: buildAuthHeaders(access_token, grupoAtivoId),
     });
     const data = await alvaraTipos.json();
     return {

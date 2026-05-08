@@ -13,6 +13,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ProcessoDetalhesHeader, AndamentosDetalhes } from "./_components";
 import { Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AlertCircle } from "lucide-react";
 
 export default async function ProcessoDetalhesPageSuspense({
   params,
@@ -38,7 +39,44 @@ async function ProcessoDetalhesPage({
     redirect("/login");
   }
 
-  const response = await processo.query.buscarPorId(session.access_token, id);
+  if (!session.grupoAtivo?.id) {
+    return (
+      <div className="w-full px-0 md:px-8 pb-20 md:pb-14 h-full md:container mx-auto">
+        <div className="mb-6">
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Voltar para Processos
+            </Link>
+          </Button>
+        </div>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-4 text-amber-900">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-5 w-5 shrink-0" />
+                <div>
+                  <p className="font-medium">
+                    Selecione um grupo ativo para acessar o processo
+                  </p>
+                  <p className="text-sm opacity-90">
+                    Abra o menu do usuário e escolha um grupo ativo antes de
+                    visualizar andamentos.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const response = await processo.query.buscarPorId(
+    session.access_token,
+    id,
+    session.grupoAtivo.id,
+  );
 
   if (!response.ok || !response.data) {
     return (

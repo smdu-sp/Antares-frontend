@@ -3,6 +3,7 @@
 "use server";
 
 import { auth } from "@/lib/auth/auth";
+import { buildAuthHeaders } from "@/lib/http/auth-headers";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { IRespostaUnidade, IUpdateUnidade, IUnidade } from "@/types/unidade";
@@ -18,10 +19,7 @@ export async function atualizar(
   try {
     const response: Response = await fetch(`${baseURL}unidades/${id}`, {
       method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session?.access_token}`,
-      },
+      headers: buildAuthHeaders(session.access_token, session.grupoAtivo?.id),
       body: JSON.stringify(data),
     });
     const dataResponse = await response.json();

@@ -11,6 +11,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { remover } from "@/services/unidades/server-functions";
+import { canAdmin } from "@/lib/access-control";
 import { Loader2, Trash2 } from "lucide-react";
 import { useTransition } from "react";
 import { toast } from "sonner";
@@ -21,9 +22,7 @@ export default function ModalDelete({ id }: { id: string }) {
   const { data: session } = useSession();
 
   // Verificar se o usuário tem permissão para deletar
-  const canDelete =
-    session?.usuario?.permissao &&
-    ["DEV", "ADM"].includes(session.usuario.permissao.toString());
+  const canDelete = canAdmin(session?.usuario);
 
   // Se não tiver permissão, retornar null (não renderizar o botão)
   if (!canDelete) {

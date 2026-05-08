@@ -1,6 +1,7 @@
 "use server";
 
 import { auth } from "@/lib/auth/auth";
+import { buildAuthHeaders } from "@/lib/http/auth-headers";
 import type {
   IPreferencia,
   CriarPreferenciaDTO,
@@ -8,54 +9,50 @@ import type {
 } from "@/types/preferencia";
 
 // Remover barra final se existir
-const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080").replace(/\/$/, "");
+const API_URL = (
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
+).replace(/\/$/, "");
 
 /**
  * Buscar uma preferência específica por chave
  */
 export async function buscarPreferencia(
-  chave: string
+  chave: string,
 ): Promise<IPreferencia | null> {
   const session = await auth();
 
   if (!session?.access_token) {
-    throw new Error("Usuário não autenticado");
+    return null;
   }
 
   try {
     const url = `${API_URL}/preferencias/${chave}`;
-    console.log('🌐 Buscando preferência:', { url, chave, API_URL });
 
     const response = await fetch(url, {
       method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
-      },
+      headers: buildAuthHeaders(session.access_token, session.grupoAtivo?.id),
       cache: "no-store",
     });
 
     if (response.status === 404) {
-      console.log('ℹ️ Preferência não encontrada:', chave);
+      return null;
+    }
+
+    if (response.status === 401 || response.status === 403) {
       return null;
     }
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('❌ Erro ao buscar:', { 
-        status: response.status, 
-        url: response.url,
-        errorText 
-      });
       throw new Error(
-        `Erro ao buscar preferência: ${response.status} - ${errorText}`
+        `Erro ao buscar preferência: ${response.status} - ${errorText}`,
       );
     }
 
     const preferencia = await response.json();
 
     // Tentar fazer parse do valor se for string JSON
-    if (preferencia && typeof preferencia.valor === 'string') {
+    if (preferencia && typeof preferencia.valor === "string") {
       try {
         preferencia.valor = JSON.parse(preferencia.valor);
       } catch {
@@ -66,7 +63,7 @@ export async function buscarPreferencia(
     return preferencia;
   } catch (error) {
     console.error("Erro ao buscar preferência:", error);
-    throw error;
+    return null;
   }
 }
 
@@ -74,7 +71,7 @@ export async function buscarPreferencia(
  * Salvar ou atualizar uma preferência
  */
 export async function salvarPreferencia(
-  data: CriarPreferenciaDTO
+  data: CriarPreferenciaDTO,
 ): Promise<IPreferencia> {
   const session = await auth();
 
@@ -84,9 +81,8 @@ export async function salvarPreferencia(
 
   try {
     // Converter valor para string JSON se não for string
-    const valorString = typeof data.valor === 'string' 
-      ? data.valor 
-      : JSON.stringify(data.valor);
+    const valorString =
+      typeof data.valor === "string" ? data.valor : JSON.stringify(data.valor);
 
     const payload = {
       chave: data.chave,
@@ -94,33 +90,17 @@ export async function salvarPreferencia(
     };
 
     const url = `${API_URL}/preferencias`;
-    console.log('🌐 Chamando API:', { 
-      url, 
-      method: 'POST',
-      API_URL,
-      chave: data.chave,
-      valorLength: valorString.length 
-    });
 
     const response = await fetch(url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
-      },
+      headers: buildAuthHeaders(session.access_token, session.grupoAtivo?.id),
       body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('❌ Erro na resposta:', { 
-        status: response.status, 
-        statusText: response.statusText,
-        url: response.url,
-        errorText 
-      });
       throw new Error(
-        `Erro ao salvar preferência: ${response.status} - ${errorText}`
+        `Erro ao salvar preferência: ${response.status} - ${errorText}`,
       );
     }
 
@@ -144,17 +124,14 @@ export async function buscarTodasPreferencias(): Promise<IPreferencia[]> {
   try {
     const response = await fetch(`${API_URL}/preferencias`, {
       method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
-      },
+      headers: buildAuthHeaders(session.access_token, session.grupoAtivo?.id),
       cache: "no-store",
     });
 
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(
-        `Erro ao buscar preferências: ${response.status} - ${errorText}`
+        `Erro ao buscar preferências: ${response.status} - ${errorText}`,
       );
     }
 
@@ -162,7 +139,7 @@ export async function buscarTodasPreferencias(): Promise<IPreferencia[]> {
 
     // Tentar fazer parse do valor de cada preferência
     return preferencias.map((pref: IPreferencia) => {
-      if (typeof pref.valor === 'string') {
+      if (typeof pref.valor === "string") {
         try {
           return { ...pref, valor: JSON.parse(pref.valor) };
         } catch {
@@ -190,16 +167,13 @@ export async function deletarPreferencia(chave: string): Promise<void> {
   try {
     const response = await fetch(`${API_URL}/preferencias/${chave}`, {
       method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
-      },
+      headers: buildAuthHeaders(session.access_token, session.grupoAtivo?.id),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(
-        `Erro ao deletar preferência: ${response.status} - ${errorText}`
+        `Erro ao deletar preferência: ${response.status} - ${errorText}`,
       );
     }
   } catch (error) {
@@ -221,16 +195,13 @@ export async function deletarTodasPreferencias(): Promise<void> {
   try {
     const response = await fetch(`${API_URL}/preferencias`, {
       method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
-      },
+      headers: buildAuthHeaders(session.access_token, session.grupoAtivo?.id),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(
-        `Erro ao deletar preferências: ${response.status} - ${errorText}`
+        `Erro ao deletar preferências: ${response.status} - ${errorText}`,
       );
     }
   } catch (error) {

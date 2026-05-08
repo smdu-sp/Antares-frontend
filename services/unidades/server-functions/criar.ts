@@ -5,6 +5,7 @@
 import { redirect } from "next/navigation";
 import { ICreateUnidade, IRespostaUnidade, IUnidade } from "@/types/unidade";
 import { auth } from "@/lib/auth/auth";
+import { buildAuthHeaders } from "@/lib/http/auth-headers";
 import { revalidateTag } from "next/cache";
 
 export async function criar(data: ICreateUnidade): Promise<IRespostaUnidade> {
@@ -14,10 +15,7 @@ export async function criar(data: ICreateUnidade): Promise<IRespostaUnidade> {
 
   const response: Response = await fetch(`${baseURL}unidades`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${session?.access_token}`,
-    },
+    headers: buildAuthHeaders(session.access_token, session.grupoAtivo?.id),
     body: JSON.stringify(data),
   });
   const dataResponse = await response.json();

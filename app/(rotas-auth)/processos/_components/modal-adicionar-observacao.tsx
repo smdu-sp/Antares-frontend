@@ -68,7 +68,8 @@ export default function ModalAdicionarObservacao({
         // Buscar o último andamento do processo para adicionar a observação
         const response = await andamento.query.buscarPorProcesso(
           session.access_token,
-          processoId
+          processoId,
+          session.grupoAtivo?.id,
         );
 
         if (

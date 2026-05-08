@@ -1,23 +1,24 @@
 /** @format */
 
 import { IRespostaUsuario, IUsuario } from "@/types/usuario";
+import { buildAuthHeaders } from "@/lib/http/auth-headers";
 
-export async function buscarMeuUsuario( access_token: string): Promise<IRespostaUsuario> {
-  if (!access_token || access_token === '')
-		return {
-			ok: false,
-			error: 'Não foi possível buscar o usuário, Token inválido.',
-			data: null,
-			status: 400,
-		};
+export async function buscarMeuUsuario(
+  access_token: string,
+  grupoAtivoId?: string,
+): Promise<IRespostaUsuario> {
+  if (!access_token || access_token === "")
+    return {
+      ok: false,
+      error: "Não foi possível buscar o usuário, Token inválido.",
+      data: null,
+      status: 400,
+    };
   const baseURL = process.env.NEXT_PUBLIC_API_URL;
   try {
-    const usuarios = await fetch(`${baseURL}eu`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${access_token}`,
-      },
+    const usuarios = await fetch(`${baseURL}usuario-atual`, {
+      method: "GET",
+      headers: buildAuthHeaders(access_token, grupoAtivoId),
     });
     const data = await usuarios.json();
     if (usuarios.status === 200)
@@ -36,7 +37,7 @@ export async function buscarMeuUsuario( access_token: string): Promise<IResposta
   } catch (error) {
     return {
       ok: false,
-      error: 'Não foi possível buscar o usuário:' + error,
+      error: "Não foi possível buscar o usuário:" + error,
       data: null,
       status: 400,
     };

@@ -3,6 +3,7 @@
 "use server";
 
 import { auth } from "@/lib/auth/auth";
+import { buildAuthHeaders } from "@/lib/http/auth-headers";
 import { revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -12,10 +13,7 @@ export async function desativar(id: string) {
   const baseURL = process.env.NEXT_PUBLIC_API_URL;
   const desativado = await fetch(`${baseURL}usuarios/desativar/${id}`, {
     method: "DELETE",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${session?.access_token}`,
-    },
+    headers: buildAuthHeaders(session.access_token, session.grupoAtivo?.id),
   });
   const dataResponse = await desativado.json();
   if (desativado.status === 200) {

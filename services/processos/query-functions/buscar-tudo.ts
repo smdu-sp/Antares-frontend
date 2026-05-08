@@ -1,6 +1,7 @@
 /** @format */
 
 import { IPaginadoProcesso, IRespostaProcesso } from "@/types/processo";
+import { buildAuthHeaders } from "@/lib/http/auth-headers";
 
 export async function buscarTudo(
   access_token: string,
@@ -10,6 +11,7 @@ export async function buscarTudo(
   vencendoHoje: boolean = false,
   atrasados: boolean = false,
   unidadeDestino?: string,
+  grupoAtivoId?: string,
 ): Promise<IRespostaProcesso> {
   const baseURL = process.env.NEXT_PUBLIC_API_URL;
   try {
@@ -25,10 +27,7 @@ export async function buscarTudo(
 
     const processos = await fetch(`${baseURL}processos?${params.toString()}`, {
       method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${access_token}`,
-      },
+      headers: buildAuthHeaders(access_token, grupoAtivoId),
       next: { tags: ["processos"], revalidate: 120 },
     });
     const data = await processos.json();

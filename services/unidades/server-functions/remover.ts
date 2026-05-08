@@ -3,6 +3,7 @@
 "use server";
 
 import { auth } from "@/lib/auth/auth";
+import { buildAuthHeaders } from "@/lib/http/auth-headers";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { IRespostaUnidade } from "@/types/unidade";
@@ -15,10 +16,7 @@ export async function remover(id: string): Promise<IRespostaUnidade> {
   try {
     const response: Response = await fetch(`${baseURL}unidades/${id}`, {
       method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session?.access_token}`,
-      },
+      headers: buildAuthHeaders(session.access_token, session.grupoAtivo?.id),
     });
     const dataResponse = await response.json();
 

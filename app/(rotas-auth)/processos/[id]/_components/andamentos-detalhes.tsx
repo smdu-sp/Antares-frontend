@@ -30,6 +30,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { canAdmin, canEdit } from "@/lib/access-control";
 import {
   calcularDiasRestantes,
   getStatusPrazo,
@@ -89,14 +90,16 @@ export default function AndamentosDetalhes({
   processo: IProcesso;
 }) {
   const { data: session } = useSession();
+  const hasEditPermission = canEdit(session?.usuario);
+  const hasAdminPermission = canAdmin(session?.usuario);
   const [andamentos, setAndamentos] = useState<IAndamento[]>(
-    processo.andamentos || []
+    processo.andamentos || [],
   );
   const [loading, setLoading] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [historicoAberto, setHistoricoAberto] = useState(false);
   const [selectedAndamentos, setSelectedAndamentos] = useState<Set<string>>(
-    new Set()
+    new Set(),
   );
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -108,7 +111,8 @@ export default function AndamentosDetalhes({
       setLoading(true);
       const response = await andamento.query.buscarPorProcesso(
         session.access_token as string,
-        processo.id
+        processo.id,
+        session.grupoAtivo?.id,
       );
       if (response.ok && response.data) {
         setAndamentos(response.data as IAndamento[]);
@@ -177,7 +181,7 @@ export default function AndamentosDetalhes({
 
       // Filtrar apenas IDs válidos (strings não vazias)
       const validIds = ids.filter(
-        (id) => typeof id === "string" && id.trim() !== "" && id !== "lote"
+        (id) => typeof id === "string" && id.trim() !== "" && id !== "lote",
       );
 
       if (validIds.length === 0) {
@@ -220,11 +224,11 @@ export default function AndamentosDetalhes({
         console.error("O backend está retornando erro 404 com a mensagem:");
         console.error(`'${response.error}'`);
         console.error(
-          "Isso indica que o backend está iterando sobre as propriedades do objeto"
+          "Isso indica que o backend está iterando sobre as propriedades do objeto",
         );
         console.error("em vez dos valores do array 'ids'.");
         console.error(
-          "O backend precisa ser corrigido para usar: for (const id of data.ids)"
+          "O backend precisa ser corrigido para usar: for (const id of data.ids)",
         );
         console.error("=============================");
       }
@@ -235,7 +239,7 @@ export default function AndamentosDetalhes({
 
   // Ordena andamentos por data de criação (mais recente primeiro)
   const andamentosOrdenados = [...andamentos].sort(
-    (a, b) => new Date(b.criadoEm).getTime() - new Date(a.criadoEm).getTime()
+    (a, b) => new Date(b.criadoEm).getTime() - new Date(a.criadoEm).getTime(),
   );
 
   // (Removed temporary global event listeners and debug logs)
@@ -243,10 +247,10 @@ export default function AndamentosDetalhes({
   // Separa andamentos em ativos (tudo exceto CONCLUIDO) e histórico (apenas CONCLUIDO)
   // Observação: PRORROGADO deve permanecer entre os andamentos ativos
   const andamentosHistorico = andamentosOrdenados.filter(
-    (a) => a.status === StatusAndamento.CONCLUIDO
+    (a) => a.status === StatusAndamento.CONCLUIDO,
   );
   const andamentosEmAndamento = andamentosOrdenados.filter(
-    (a) => a.status !== StatusAndamento.CONCLUIDO
+    (a) => a.status !== StatusAndamento.CONCLUIDO,
   );
 
   if (loading) {
@@ -269,14 +273,16 @@ export default function AndamentosDetalhes({
           </p>
         </div>
         <div className="flex gap-2">
-          <ModalAndamento
-            processoId={processo.id}
-            processoOrigem={processo.origem || ""}
-            onSuccess={refreshFn}
-            size="lg"
-            variant="default"
-          />
-          {andamentosOrdenados.length > 0 && (
+          {hasEditPermission && (
+            <ModalAndamento
+              processoId={processo.id}
+              processoOrigem={processo.origem || ""}
+              onSuccess={refreshFn}
+              size="lg"
+              variant="default"
+            />
+          )}
+          {hasEditPermission && andamentosOrdenados.length > 0 && (
             <Button
               variant={isSelectionMode ? "default" : "outline"}
               size="lg"
@@ -291,17 +297,19 @@ export default function AndamentosDetalhes({
               {isSelectionMode ? "Sair do modo seleção" : "Editar em lote"}
             </Button>
           )}
-          <ModalRespostaFinal
-            processo={processo}
-            onSuccess={refreshFn}
-            size="lg"
-            variant="outline"
-          />
+          {hasEditPermission && (
+            <ModalRespostaFinal
+              processo={processo}
+              onSuccess={refreshFn}
+              size="lg"
+              variant="outline"
+            />
+          )}
         </div>
       </div>
 
       {/* Barra de ações em lote */}
-      {isSelectionMode && (
+      {hasEditPermission && isSelectionMode && (
         <div className="flex items-center justify-between bg-muted/50 p-4 rounded-lg">
           <div className="flex items-center gap-2">
             <Button
@@ -401,43 +409,45 @@ export default function AndamentosDetalhes({
                 </DialogContent>
               </Dialog>
 
-              <AlertDialog
-                open={showDeleteConfirm}
-                onOpenChange={setShowDeleteConfirm}
-              >
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    className="flex items-center gap-2"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Excluir Selecionados
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Tem certeza que deseja excluir {selectedAndamentos.size}{" "}
-                      andamento(s) selecionado(s)? Esta ação não pode ser
-                      desfeita.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() => {
-                        handleBulkEdit("delete");
-                        setShowDeleteConfirm(false);
-                      }}
-                      className="bg-destructive text-white hover:bg-destructive/90"
+              {hasAdminPermission && (
+                <AlertDialog
+                  open={showDeleteConfirm}
+                  onOpenChange={setShowDeleteConfirm}
+                >
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="flex items-center gap-2"
                     >
-                      Excluir
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                      <Trash2 className="h-4 w-4" />
+                      Excluir Selecionados
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Tem certeza que deseja excluir {selectedAndamentos.size}{" "}
+                        andamento(s) selecionado(s)? Esta ação não pode ser
+                        desfeita.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => {
+                          handleBulkEdit("delete");
+                          setShowDeleteConfirm(false);
+                        }}
+                        className="bg-destructive text-white hover:bg-destructive/90"
+                      >
+                        Excluir
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
             </div>
           )}
         </div>
@@ -461,7 +471,7 @@ export default function AndamentosDetalhes({
                   className="border-l-4 border-l-blue-500"
                 >
                   {/* Checkbox para seleção múltipla */}
-                  {isSelectionMode && (
+                  {hasEditPermission && isSelectionMode && (
                     <div className="p-4 pb-0">
                       <Checkbox
                         checked={selectedAndamentos.has(andamento.id)}
@@ -483,32 +493,33 @@ export default function AndamentosDetalhes({
                         </CardDescription>
                       </div>
                       <div className="flex gap-2">
-                        <ModalAdicionarObservacao
-                          processoId={processo.id}
-                          onSuccess={refreshFn}
-                        />
-                        <ModalProrrogarAndamento
-                          andamento={andamento}
-                          onSuccess={refreshFn}
-                        />
-                        <ModalResponderAndamento
-                          andamento={andamento}
-                          processoId={processo.id}
-                          onSuccess={refreshFn}
-                        />
-                        <ModalEditAndamento
-                          andamento={andamento}
-                          onSuccess={refreshFn}
-                        />
-                        {session?.usuario?.permissao &&
-                          ["DEV", "ADM", "TEC"].includes(
-                            session.usuario.permissao.toString()
-                          ) && (
-                            <ModalDeleteAndamento
+                        {hasEditPermission && (
+                          <>
+                            <ModalAdicionarObservacao
+                              processoId={processo.id}
+                              onSuccess={refreshFn}
+                            />
+                            <ModalProrrogarAndamento
                               andamento={andamento}
                               onSuccess={refreshFn}
                             />
-                          )}
+                            <ModalResponderAndamento
+                              andamento={andamento}
+                              processoId={processo.id}
+                              onSuccess={refreshFn}
+                            />
+                            <ModalEditAndamento
+                              andamento={andamento}
+                              onSuccess={refreshFn}
+                            />
+                          </>
+                        )}
+                        {hasAdminPermission && (
+                          <ModalDeleteAndamento
+                            andamento={andamento}
+                            onSuccess={refreshFn}
+                          />
+                        )}
                       </div>
                     </div>
                   </CardHeader>
@@ -622,7 +633,7 @@ function AndamentoCard({
 }) {
   const diasRestantes = calcularDiasRestantes(
     new Date(andamento.prazo),
-    andamento.prorrogacao
+    andamento.prorrogacao,
   );
   const statusPrazo = getStatusPrazo(diasRestantes, andamento.status);
   const Icone = statusPrazo.icone;
@@ -641,15 +652,15 @@ function AndamentoCard({
           {andamento.status === StatusAndamento.EM_ANDAMENTO
             ? "Em Andamento"
             : andamento.status === StatusAndamento.PRORROGADO
-            ? "Prorrogado"
-            : "Concluído"}
+              ? "Prorrogado"
+              : "Concluído"}
         </Badge>
         {andamento.status !== StatusAndamento.CONCLUIDO && (
           <div
             className={cn(
               "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium",
               statusPrazo.bg,
-              statusPrazo.cor
+              statusPrazo.cor,
             )}
           >
             <Icone className="h-4 w-4" />
@@ -755,6 +766,8 @@ function AndamentoRow({
   onToggleSelection?: () => void;
 }) {
   const { data: session } = useSession();
+  const hasEditPermission = canEdit(session?.usuario);
+  const hasAdminPermission = canAdmin(session?.usuario);
   const [isExpanded, setIsExpanded] = useState(false);
 
   // Função para obter o estilo do badge baseado no status
@@ -799,7 +812,7 @@ function AndamentoRow({
     // Se em andamento, verifica o prazo
     const diasRestantes = calcularDiasRestantes(
       new Date(andamento.prazo),
-      andamento.prorrogacao
+      andamento.prorrogacao,
     );
 
     if (diasRestantes !== null) {
@@ -873,16 +886,15 @@ function AndamentoRow({
         </TableCell>
         <TableCell className="text-right">
           <div className="flex gap-1 justify-end">
-            <ModalEditAndamento andamento={andamento} onSuccess={onRefresh} />
-            {session?.usuario?.permissao &&
-              ["DEV", "ADM", "TEC"].includes(
-                session.usuario.permissao.toString()
-              ) && (
-                <ModalDeleteAndamento
-                  andamento={andamento}
-                  onSuccess={onRefresh}
-                />
-              )}
+            {hasEditPermission && (
+              <ModalEditAndamento andamento={andamento} onSuccess={onRefresh} />
+            )}
+            {hasAdminPermission && (
+              <ModalDeleteAndamento
+                andamento={andamento}
+                onSuccess={onRefresh}
+              />
+            )}
           </div>
         </TableCell>
       </TableRow>

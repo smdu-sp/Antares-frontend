@@ -1,61 +1,65 @@
 /** @format */
 
-import { Button } from '@/components/ui/button';
+"use client";
+
+import { Button } from "@/components/ui/button";
 import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogHeader,
-	DialogTitle,
-	DialogTrigger,
-} from '@/components/ui/dialog';
-import { IUsuario } from '@/types/usuario';
-import { Plus, SquarePen } from 'lucide-react';
-import FormUsuario from './form-usuario';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { IUsuario } from "@/types/usuario";
+import { Plus, SquarePen } from "lucide-react";
+import { useState } from "react";
+import FormUsuario from "./form-usuario";
 
 export default function ModalUpdateAndCreate({
-	isUpdating,
-	user,
+  isUpdating,
+  user,
 }: {
-	isUpdating: boolean;
-	user?: Partial<IUsuario>;
+  isUpdating: boolean;
+  user?: Partial<IUsuario>;
 }) {
-	return (
-		<Dialog>
-			<DialogTrigger asChild>
-				<Button
-					size={'icon'}
-					variant={'outline'}
-					className={`${
-						isUpdating
-							? 'bg-background hover:bg-primary '
-							: 'bg-primary hover:bg-primary hover:opacity-70'
-					} group transition-all ease-linear duration-200`}>
-					{isUpdating ? (
-						<SquarePen
-							size={28}
-							className='text-primary group-hover:text-white group'
-						/>
-					) : (
-						<Plus
-							size={28}
-							className='text-white group'
-						/>
-					)}
-				</Button>
-			</DialogTrigger>
-			<DialogContent>
-				<DialogHeader>
-					<DialogTitle>{isUpdating ? 'Editar ' : 'Criar '}Usuário</DialogTitle>
-					<DialogDescription>
-						Gerencie as informações do usuário selecioando
-					</DialogDescription>
-				</DialogHeader>
-				<FormUsuario
-					user={user}
-					isUpdating={isUpdating}
-				/>
-			</DialogContent>
-		</Dialog>
-	);
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button
+          size={"icon"}
+          variant={"outline"}
+          className={`${
+            isUpdating
+              ? "bg-background hover:bg-primary "
+              : "bg-primary hover:bg-primary hover:opacity-70"
+          } group transition-all ease-linear duration-200`}
+        >
+          {isUpdating ? (
+            <SquarePen
+              size={28}
+              className="text-primary group-hover:text-white group"
+            />
+          ) : (
+            <Plus size={28} className="text-white group" />
+          )}
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{isUpdating ? "Editar " : "Criar "}Usuário</DialogTitle>
+          <DialogDescription>
+            Gerencie as informações do usuário selecioando
+          </DialogDescription>
+        </DialogHeader>
+        <FormUsuario
+          user={user}
+          isUpdating={isUpdating}
+          onSuccess={() => setOpen(false)}
+        />
+      </DialogContent>
+    </Dialog>
+  );
 }

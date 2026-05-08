@@ -3,6 +3,7 @@
 "use server";
 
 import { auth } from "@/lib/auth/auth";
+import { buildAuthHeaders } from "@/lib/http/auth-headers";
 import { revalidateTag } from "next/cache";
 
 const BACKEND = process.env.NEXT_PUBLIC_API_URL;
@@ -22,10 +23,7 @@ export async function criar(data: any) {
 
     const resposta = await fetch(`${BACKEND}interessados`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
-      },
+      headers: buildAuthHeaders(session.access_token, session.grupoAtivo?.id),
       body: JSON.stringify(data),
     });
 

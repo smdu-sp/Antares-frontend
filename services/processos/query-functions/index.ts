@@ -6,3 +6,4 @@ export * from "./contar-vencendo-hoje";
 export * from "./contar-atrasados";
 export * from "./contar-concluidos";
 export * from "./contar-em-andamento";
+export * from "./buscar-politica-colunas";

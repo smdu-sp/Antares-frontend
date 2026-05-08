@@ -1,21 +1,20 @@
 /** @format */
 
 import { IAndamento, IRespostaAndamento } from "@/types/processo";
+import { buildAuthHeaders } from "@/lib/http/auth-headers";
 
 export async function buscarTudo(
   access_token: string,
   pagina: number = 1,
   limite: number = 100,
+  grupoAtivoId?: string,
 ): Promise<IRespostaAndamento> {
   const baseURL = process.env.NEXT_PUBLIC_API_URL;
 
   const response = await fetch(
     `${baseURL}andamentos?pagina=${pagina}&limite=${limite}`,
     {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${access_token}`,
-      },
+      headers: buildAuthHeaders(access_token, grupoAtivoId),
     },
   );
 

@@ -97,7 +97,8 @@ export default function ModalEditObservacao({
         // Busca o andamento atual
         const response = await andamento.query.buscarPorProcesso(
           session.access_token,
-          processoId
+          processoId,
+          session.grupoAtivo?.id,
         );
 
         if (!response.ok || !response.data || !Array.isArray(response.data)) {
@@ -149,9 +150,8 @@ export default function ModalEditObservacao({
               session?.usuario?.nomeSocial ||
               session?.usuario?.nome ||
               "Usuário";
-            observacoes[
-              indiceObservacao
-            ] = `[${dataFormatada}] ${usuarioNome}:\n${data.observacao.trim()}`;
+            observacoes[indiceObservacao] =
+              `[${dataFormatada}] ${usuarioNome}:\n${data.observacao.trim()}`;
           }
 
           // Junta todas as observações mantendo a ordem original

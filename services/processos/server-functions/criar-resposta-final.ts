@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { IRespostaProcesso } from "@/types/processo";
 import { auth } from "@/lib/auth/auth";
 import { revalidateTag } from "next/cache";
+import { buildAuthHeaders } from "@/lib/http/auth-headers";
 
 export interface ICreateRespostaFinal {
   processo_id: string;
@@ -15,7 +16,7 @@ export interface ICreateRespostaFinal {
 }
 
 export async function criarRespostaFinal(
-  data: ICreateRespostaFinal
+  data: ICreateRespostaFinal,
 ): Promise<IRespostaProcesso> {
   const session = await auth();
   const baseURL = process.env.NEXT_PUBLIC_API_URL;
@@ -23,10 +24,7 @@ export async function criarRespostaFinal(
 
   const response: Response = await fetch(`${baseURL}processos/resposta-final`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${session?.access_token}`,
-    },
+    headers: buildAuthHeaders(session.access_token, session.grupoAtivo?.id),
     body: JSON.stringify(data),
   });
 

@@ -4,6 +4,7 @@ import DataTable, { TableSkeleton } from "@/components/data-table";
 import { Filtros } from "@/components/filtros";
 import Pagination from "@/components/pagination";
 import { auth } from "@/lib/auth/auth";
+import { AccessState } from "../_components/access-state";
 import * as interessado from "@/services/interessados";
 import { IInteressado } from "@/types/interessado";
 import { Suspense } from "react";
@@ -33,10 +34,29 @@ async function Interessados({
   let dados: IInteressado[] = [];
 
   const session = await auth();
+  if (!session?.grupoAtivo?.id) {
+    return (
+      <div className="w-full px-0 md:px-8 relative pb-20 md:pb-14 h-full md:container mx-auto">
+        <h1 className="text-xl md:text-4xl font-bold">Interessados</h1>
+        <div className="my-5">
+          <AccessState
+            title="Selecione um grupo ativo para continuar"
+            description="Abra o menu do usuário e escolha um grupo ativo antes de acessar a lista de interessados."
+          />
+        </div>
+      </div>
+    );
+  }
+
+  let erro403 = false;
   if (session && session.access_token) {
-    const response = await interessado.query.listar(session.access_token);
+    const response = await interessado.query.listar(
+      session.access_token,
+      session.grupoAtivo.id,
+    );
     const { data } = response;
     ok = response.ok;
+    erro403 = response.status === 403;
     if (ok && data) {
       dados = data as IInteressado[];
       total = dados.length;
@@ -47,6 +67,12 @@ async function Interessados({
     <div className="w-full px-0 md:px-8 relative pb-20 md:pb-14 h-full md:container mx-auto">
       <h1 className="text-xl md:text-4xl font-bold">Interessados</h1>
       <div className="flex flex-col max-w-sm mx-auto md:max-w-full gap-3 my-5 w-full">
+        {erro403 && (
+          <AccessState
+            title="Acesso negado para o grupo ativo"
+            description="Seu grupo ativo não possui permissão para consultar interessados."
+          />
+        )}
         <Filtros
           camposFiltraveis={[
             {

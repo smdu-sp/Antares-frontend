@@ -1,16 +1,19 @@
 /** @format */
 
-'use client';
+"use client";
 
-import { IProcesso } from '@/types/processo';
-import { IUnidade } from '@/types/unidade';
-import { IInteressado } from '@/types/interessado';
-import ProcessosSpreadsheet from '@/components/processos-spreadsheet';
+import { IProcesso } from "@/types/processo";
+import { IUnidade } from "@/types/unidade";
+import { IInteressado } from "@/types/interessado";
+import ProcessosSpreadsheet from "@/components/processos-spreadsheet";
 
 interface ProcessosGridProps {
   processos: IProcesso[];
   unidades: IUnidade[];
   interessados: IInteressado[];
+  colunasProcessos?: string[];
+  chavePreferenciaOrdem?: string;
+  exibirAtribuicaoUsuario?: boolean;
   busca?: string;
   interessado?: string;
   unidade?: string;
@@ -23,9 +26,12 @@ export function ProcessosGrid({
   processos,
   unidades,
   interessados,
-  busca = '',
-  interessado = '',
-  unidade = '',
+  colunasProcessos = [],
+  chavePreferenciaOrdem,
+  exibirAtribuicaoUsuario = false,
+  busca = "",
+  interessado = "",
+  unidade = "",
   vencendoHoje = false,
   atrasados = false,
   concluidos = false,
@@ -36,6 +42,9 @@ export function ProcessosGrid({
         processos={processos}
         unidades={unidades}
         interessados={interessados}
+        colunasProcessos={colunasProcessos}
+        chavePreferenciaOrdem={chavePreferenciaOrdem}
+        exibirAtribuicaoUsuario={exibirAtribuicaoUsuario}
         busca={busca}
         interessado={interessado}
         unidade={unidade}

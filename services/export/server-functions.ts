@@ -1,9 +1,10 @@
 /** @format */
 
-'use server';
+"use server";
 
-import { redirect } from 'next/navigation';
-import { auth } from '@/lib/auth/auth';
+import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth/auth";
+import { buildAuthHeaders } from "@/lib/http/auth-headers";
 
 export interface ExportParams {
   ids?: string[];
@@ -20,21 +21,18 @@ export interface ExportParams {
 export async function exportarProcessosExcel(params: ExportParams) {
   const session = await auth();
   const baseURL = process.env.NEXT_PUBLIC_API_URL;
-  
-  if (!session) redirect('/login');
+
+  if (!session) redirect("/login");
 
   try {
     // Remover campos undefined
     const cleanParams = Object.fromEntries(
-      Object.entries(params).filter(([_, v]) => v !== undefined)
+      Object.entries(params).filter(([_, v]) => v !== undefined),
     );
 
     const response = await fetch(`${baseURL}export/processos/excel`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session?.access_token}`,
-      },
+      method: "POST",
+      headers: buildAuthHeaders(session.access_token, session.grupoAtivo?.id),
       body: JSON.stringify(cleanParams),
     });
 
@@ -50,11 +48,11 @@ export async function exportarProcessosExcel(params: ExportParams) {
       error: `Erro ao exportar processos para Excel: ${response.status} - ${errorText}`,
     };
   } catch (error) {
-    console.error('Erro ao exportar processos para Excel:', error);
+    console.error("Erro ao exportar processos para Excel:", error);
     return {
       ok: false,
       blob: null,
-      error: 'Erro ao conectar com o servidor',
+      error: "Erro ao conectar com o servidor",
     };
   }
 }
@@ -62,21 +60,18 @@ export async function exportarProcessosExcel(params: ExportParams) {
 export async function exportarProcessosPdf(params: ExportParams) {
   const session = await auth();
   const baseURL = process.env.NEXT_PUBLIC_API_URL;
-  
-  if (!session) redirect('/login');
+
+  if (!session) redirect("/login");
 
   try {
     // Remover campos undefined
     const cleanParams = Object.fromEntries(
-      Object.entries(params).filter(([_, v]) => v !== undefined)
+      Object.entries(params).filter(([_, v]) => v !== undefined),
     );
 
     const response = await fetch(`${baseURL}export/processos/pdf`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session?.access_token}`,
-      },
+      method: "POST",
+      headers: buildAuthHeaders(session.access_token, session.grupoAtivo?.id),
       body: JSON.stringify(cleanParams),
     });
 
@@ -92,11 +87,11 @@ export async function exportarProcessosPdf(params: ExportParams) {
       error: `Erro ao exportar processos para PDF: ${response.status} - ${errorText}`,
     };
   } catch (error) {
-    console.error('Erro ao exportar processos para PDF:', error);
+    console.error("Erro ao exportar processos para PDF:", error);
     return {
       ok: false,
       blob: null,
-      error: 'Erro ao conectar com o servidor',
+      error: "Erro ao conectar com o servidor",
     };
   }
 }
@@ -104,21 +99,18 @@ export async function exportarProcessosPdf(params: ExportParams) {
 export async function exportarAndamentosExcel(params: ExportParams) {
   const session = await auth();
   const baseURL = process.env.NEXT_PUBLIC_API_URL;
-  
-  if (!session) redirect('/login');
+
+  if (!session) redirect("/login");
 
   try {
     // Remover campos undefined
     const cleanParams = Object.fromEntries(
-      Object.entries(params).filter(([_, v]) => v !== undefined)
+      Object.entries(params).filter(([_, v]) => v !== undefined),
     );
 
     const response = await fetch(`${baseURL}export/andamentos/excel`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session?.access_token}`,
-      },
+      method: "POST",
+      headers: buildAuthHeaders(session.access_token, session.grupoAtivo?.id),
       body: JSON.stringify(cleanParams),
     });
 
@@ -134,11 +126,11 @@ export async function exportarAndamentosExcel(params: ExportParams) {
       error: `Erro ao exportar andamentos para Excel: ${response.status} - ${errorText}`,
     };
   } catch (error) {
-    console.error('Erro ao exportar andamentos para Excel:', error);
+    console.error("Erro ao exportar andamentos para Excel:", error);
     return {
       ok: false,
       blob: null,
-      error: 'Erro ao conectar com o servidor',
+      error: "Erro ao conectar com o servidor",
     };
   }
 }
@@ -146,21 +138,18 @@ export async function exportarAndamentosExcel(params: ExportParams) {
 export async function exportarAndamentosPdf(params: ExportParams) {
   const session = await auth();
   const baseURL = process.env.NEXT_PUBLIC_API_URL;
-  
-  if (!session) redirect('/login');
+
+  if (!session) redirect("/login");
 
   try {
     // Remover campos undefined
     const cleanParams = Object.fromEntries(
-      Object.entries(params).filter(([_, v]) => v !== undefined)
+      Object.entries(params).filter(([_, v]) => v !== undefined),
     );
 
     const response = await fetch(`${baseURL}export/andamentos/pdf`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session?.access_token}`,
-      },
+      method: "POST",
+      headers: buildAuthHeaders(session.access_token, session.grupoAtivo?.id),
       body: JSON.stringify(cleanParams),
     });
 
@@ -176,15 +165,14 @@ export async function exportarAndamentosPdf(params: ExportParams) {
       error: `Erro ao exportar andamentos para PDF: ${response.status} - ${errorText}`,
     };
   } catch (error) {
-    console.error('Erro ao exportar andamentos para PDF:', error);
+    console.error("Erro ao exportar andamentos para PDF:", error);
     return {
       ok: false,
       blob: null,
-      error: 'Erro ao conectar com o servidor',
+      error: "Erro ao conectar com o servidor",
     };
   }
 }
 
 // Função auxiliar para disparar download do arquivo - veja client-functions.ts para a implementação
 // que funciona no navegador
-

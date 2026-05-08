@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { IRespostaAndamento } from "@/types/processo";
 import { auth } from "@/lib/auth/auth";
 import { revalidateTag } from "next/cache";
+import { buildAuthHeaders } from "@/lib/http/auth-headers";
 
 export async function atualizarLote(data: {
   ids: string[];
@@ -21,10 +22,7 @@ export async function atualizarLote(data: {
 
     const response: Response = await fetch(`${baseURL}andamentos/lote`, {
       method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session?.access_token}`,
-      },
+      headers: buildAuthHeaders(session.access_token, session.grupoAtivo?.id),
       body: JSON.stringify(data),
     });
 

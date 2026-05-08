@@ -1,13 +1,19 @@
 /** @format */
 
 import { auth } from "@/lib/auth/auth";
+import { canAdmin, getPermissaoCoordenadoria } from "@/lib/access-control";
 import { NextResponse } from "next/server";
 
 export async function middleware(request: any) {
   const session = await auth();
 
   // Rotas que requerem DEV e ADM
-  const adminRoutes = ["/unidades", "/interessados", "/usuarios"];
+  const adminRoutes = [
+    "/unidades",
+    "/interessados",
+    "/usuarios",
+    "/coordenadorias",
+  ];
   // Rotas que requerem apenas DEV
   const devOnlyRoutes = ["/logs"];
 
@@ -28,14 +34,19 @@ export async function middleware(request: any) {
   }
 
   const userPermission = session.usuario?.permissao;
+  const userCoordenadoriaPermission = getPermissaoCoordenadoria(session);
 
   // Verificar rotas que requerem DEV e ADM
-  if (isAdminRoute && !["DEV", "ADM"].includes(userPermission)) {
+  if (isAdminRoute && !canAdmin(session)) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
   // Verificar rotas que requerem apenas DEV
-  if (isDevOnlyRoute && userPermission !== "DEV") {
+  if (
+    isDevOnlyRoute &&
+    userPermission !== "DEV" &&
+    userCoordenadoriaPermission !== "ADMINISTRADOR"
+  ) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 

@@ -1,18 +1,17 @@
 /** @format */
 
 import { IRespostaUsuario, IUsuarioTecnico } from "@/types/usuario";
+import { buildAuthHeaders } from "@/lib/http/auth-headers";
 
 export async function buscarTecnicos(
   access_token: string,
+  grupoAtivoId?: string,
 ): Promise<IRespostaUsuario> {
   const baseURL = process.env.NEXT_PUBLIC_API_URL;
   try {
     const usuarioNovo = await fetch(`${baseURL}usuarios/buscar-tecnicos`, {
       method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${access_token}`,
-      },
+      headers: buildAuthHeaders(access_token, grupoAtivoId),
     });
     const data = await usuarioNovo.json();
     if (usuarioNovo.status === 200)

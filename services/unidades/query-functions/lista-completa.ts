@@ -1,18 +1,17 @@
 /** @format */
 
 import { IRespostaUnidade, IUnidade } from "@/types/unidade";
+import { buildAuthHeaders } from "@/lib/http/auth-headers";
 
 export async function listaCompleta(
   access_token: string,
+  grupoAtivoId?: string,
 ): Promise<IRespostaUnidade> {
   const baseURL = process.env.NEXT_PUBLIC_API_URL;
   try {
     const unidades = await fetch(`${baseURL}unidades/lista-completa`, {
       method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${access_token}`,
-      },
+      headers: buildAuthHeaders(access_token, grupoAtivoId),
       next: { tags: ["unidades"], revalidate: 120 },
     });
     const data = await unidades.json();

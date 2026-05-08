@@ -3,6 +3,7 @@
 "use server";
 
 import { auth } from "@/lib/auth/auth";
+import { buildAuthHeaders } from "@/lib/http/auth-headers";
 import { IUnidade } from "@/types/unidade";
 import { redirect } from "next/navigation";
 
@@ -15,10 +16,7 @@ export async function listarTodas(): Promise<IUnidade[]> {
   try {
     const response = await fetch(`${baseURL}unidades/lista-completa`, {
       method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
-      },
+      headers: buildAuthHeaders(session.access_token, session.grupoAtivo?.id),
       next: {
         revalidate: 60,
         tags: ["unidades"],
@@ -50,10 +48,7 @@ export async function reativarUnidade(
   try {
     const response = await fetch(`${baseURL}unidades/${id}/reativar`, {
       method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
-      },
+      headers: buildAuthHeaders(session.access_token, session.grupoAtivo?.id),
       body: JSON.stringify(data),
     });
 

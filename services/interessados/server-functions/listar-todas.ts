@@ -3,6 +3,7 @@
 "use server";
 
 import { auth } from "@/lib/auth/auth";
+import { buildAuthHeaders } from "@/lib/http/auth-headers";
 import { IInteressado } from "@/types/interessado";
 import { redirect } from "next/navigation";
 
@@ -15,10 +16,7 @@ export async function listarTodas(): Promise<IInteressado[]> {
   try {
     const response = await fetch(`${baseURL}interessados/lista-completa`, {
       method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
-      },
+      headers: buildAuthHeaders(session.access_token, session.grupoAtivo?.id),
       next: {
         revalidate: 60,
         tags: ["interessados"],
@@ -47,10 +45,7 @@ export async function reativarInteressado(id: string, data: { valor: string }) {
   try {
     const response = await fetch(`${baseURL}interessados/${id}/reativar`, {
       method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
-      },
+      headers: buildAuthHeaders(session.access_token, session.grupoAtivo?.id),
       body: JSON.stringify(data),
     });
 

@@ -27,9 +27,11 @@ import "ag-grid-community/styles/ag-theme-alpine.css";
 import { IProcesso, IAndamento, StatusAndamento } from "@/types/processo";
 import { IUnidade } from "@/types/unidade";
 import { IInteressado } from "@/types/interessado";
+import { IUsuarioTecnico } from "@/types/usuario";
 import * as processoService from "@/services/processos";
 import * as andamento from "@/services/andamentos";
 import * as interessadoService from "@/services/interessados";
+import * as usuarioService from "@/services/usuarios";
 import { salvarPreferencia, buscarPreferencia } from "@/services/preferencias";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
@@ -55,6 +57,9 @@ import { ExportAndamentoButton } from "@/components/export-andamento-button";
 import { ExportProcessoButton } from "@/components/export-processo-button";
 import { ExportProcessosEmLote } from "@/components/export-processos-em-lote";
 import { useSelectedProcessos } from "@/hooks/use-selected-processos";
+import { canAdmin } from "@/lib/access-control";
+
+const COLUNAS_FIXAS_UI = ["checkbox", "expand", "acoes"];
 
 // Registrar todos os módulos da comunidade AG-Grid
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -90,6 +95,7 @@ function AndamentosDetail({
         const response = await andamento.query.buscarPorProcesso(
           session.access_token,
           processo.id,
+          session.grupoAtivo?.id,
         );
         if (response.ok && response.data) {
           // Mapear 'resposta' do backend para 'data_resposta' do tipo
@@ -747,6 +753,9 @@ interface ProcessosSpreadsheetProps {
   processos: IProcesso[];
   unidades: IUnidade[];
   interessados: IInteressado[];
+  colunasProcessos?: string[];
+  chavePreferenciaOrdem?: string;
+  exibirAtribuicaoUsuario?: boolean;
   busca?: string;
   interessado?: string;
   unidade?: string;
@@ -759,6 +768,9 @@ export default function ProcessosSpreadsheet({
   processos,
   unidades,
   interessados,
+  colunasProcessos = [],
+  chavePreferenciaOrdem,
+  exibirAtribuicaoUsuario = false,
   busca = "",
   interessado = "",
   unidade = "",
@@ -773,8 +785,16 @@ export default function ProcessosSpreadsheet({
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const expandedRowsRef = useRef<Set<string>>(new Set());
   const [processosLocal, setProcessosLocal] = useState<IProcesso[]>(processos);
+  const [usuariosResponsaveis, setUsuariosResponsaveis] = useState<
+    IUsuarioTecnico[]
+  >([]);
+  const chavePreferencia = useMemo(() => {
+    const chave = (chavePreferenciaOrdem || "").trim();
+    return chave || "processos-colunas-ordem";
+  }, [chavePreferenciaOrdem]);
   const { selectedIds, toggleSelect, toggleSelectAll, isSelected } =
     useSelectedProcessos();
+  const usuariosResponsaveisRef = useRef<IUsuarioTecnico[]>([]);
 
   // Mapa de versões para controle de conflito
   const versionsRef = useRef<Map<string, Date>>(new Map());
@@ -810,6 +830,45 @@ export default function ProcessosSpreadsheet({
       initializedRef.current = true;
     }
   }, [processos]);
+
+  useEffect(() => {
+    usuariosResponsaveisRef.current = usuariosResponsaveis;
+  }, [usuariosResponsaveis]);
+
+  useEffect(() => {
+    async function carregarResponsaveis() {
+      if (!exibirAtribuicaoUsuario) {
+        setUsuariosResponsaveis([]);
+        return;
+      }
+
+      if (!session?.access_token) return;
+      try {
+        const grupoAtivoId = canAdmin(session?.usuario)
+          ? undefined
+          : session.grupoAtivo?.id;
+
+        const response = await usuarioService.listaCompleta(
+          session.access_token,
+          grupoAtivoId,
+        );
+        if (response.ok && Array.isArray(response.data)) {
+          setUsuariosResponsaveis(
+            (response.data as any[])
+              .map((responsavel) => ({
+                id: String(responsavel?.id || ""),
+                nome: String(responsavel?.nome || "").trim(),
+              }))
+              .filter((responsavel) => responsavel.id && responsavel.nome),
+          );
+        }
+      } catch {
+        toast.error("Erro ao carregar usuarios responsaveis");
+      }
+    }
+
+    carregarResponsaveis();
+  }, [session?.access_token, session?.grupoAtivo?.id, exibirAtribuicaoUsuario]);
 
   // Sincronizar ref com state
   useEffect(() => {
@@ -858,6 +917,11 @@ export default function ProcessosSpreadsheet({
     };
   }, []);
 
+  useEffect(() => {
+    hasRestoredRef.current = false;
+    isRestoringRef.current = false;
+  }, [session?.grupoAtivo?.id, chavePreferencia]);
+
   // Restaurar preferências quando a sessão estiver disponível
   useEffect(() => {
     async function restaurarPreferencias() {
@@ -871,16 +935,36 @@ export default function ProcessosSpreadsheet({
       }
 
       try {
-        const preferencia = await buscarPreferencia("ag-grid-column-state");
+        const preferencia = await buscarPreferencia(chavePreferencia);
 
         if (preferencia && preferencia.valor) {
-          const columnState = preferencia.valor;
-          
-          // Remover sorting ao restaurar para não quebrar a expansão de linhas
-          const columnStateWithoutSort = columnState.map((col: any) => {
-            const { sort, sortIndex, ...rest } = col;
-            return rest;
-          });
+          const ordemSalva = Array.isArray(preferencia.valor)
+            ? preferencia.valor
+                .map((col) => String(col || "").trim())
+                .filter(Boolean)
+            : [];
+
+          if (!ordemSalva.length) {
+            hasRestoredRef.current = true;
+            return;
+          }
+
+          const colunasDisponiveisNaGrid = new Set(
+            (gridRef.current.api.getColumnState() || [])
+              .map((col) => String(col.colId || "").trim())
+              .filter((colId) => colId && !COLUNAS_FIXAS_UI.includes(colId)),
+          );
+
+          const ordemValida = ordemSalva.filter((colId) =>
+            colunasDisponiveisNaGrid.has(colId),
+          );
+
+          if (!ordemValida.length) {
+            hasRestoredRef.current = true;
+            return;
+          }
+
+          const estadoOrdem = ordemValida.map((colId) => ({ colId }));
 
           // Delay para garantir que tudo estabilizou
           setTimeout(() => {
@@ -890,7 +974,7 @@ export default function ProcessosSpreadsheet({
             hasRestoredRef.current = true;
 
             gridRef.current.api.applyColumnState({
-              state: columnStateWithoutSort,
+              state: estadoOrdem,
               applyOrder: true,
             });
 
@@ -909,7 +993,7 @@ export default function ProcessosSpreadsheet({
     }
 
     restaurarPreferencias();
-  }, [session?.usuario, session?.id]); // Executa quando sessão fica disponível
+  }, [session?.usuario, session?.id, chavePreferencia, colunasProcessos]);
 
   // Debug: verificar se os dados estão chegando
   useEffect(() => {
@@ -926,6 +1010,14 @@ export default function ProcessosSpreadsheet({
     [interessados],
   );
 
+  const getNomeResponsavelById = useCallback((id?: string | null) => {
+    if (!id) return "";
+    const responsavel = usuariosResponsaveisRef.current.find(
+      (u) => u.id === id,
+    );
+    return responsavel?.nome || "";
+  }, []);
+
   const adicionarProcesso = () => {
     const novoProcesso: any = {
       id: `temp-${Date.now()}`,
@@ -940,6 +1032,11 @@ export default function ProcessosSpreadsheet({
       atualizadoEm: new Date(),
       _isNew: true,
     };
+
+    if (exibirAtribuicaoUsuario) {
+      novoProcesso.usuario_atribuido_id = "";
+    }
+
     setProcessosLocal([...processosLocal, novoProcesso]);
   };
 
@@ -997,7 +1094,8 @@ export default function ProcessosSpreadsheet({
           pinned: "left" as const,
           lockPosition: true,
           headerComponent: () => {
-            const allExpanded = expandedRowsRef.current.size === processosLocal.length;
+            const allExpanded =
+              expandedRowsRef.current.size === processosLocal.length;
 
             return (
               <button
@@ -1152,6 +1250,59 @@ export default function ProcessosSpreadsheet({
           },
           width: 200,
         },
+        ...(exibirAtribuicaoUsuario
+          ? [
+              {
+                field: "usuario_atribuido_nome",
+                headerName: "Responsável",
+                editable: true,
+                cellEditor: "agSelectCellEditor",
+                cellEditorParams: () => ({
+                  values: [
+                    "Nao atribuido",
+                    ...usuariosResponsaveisRef.current.map(
+                      (responsavel) => responsavel.nome,
+                    ),
+                  ],
+                }),
+                valueGetter: (params: any) => {
+                  if (params.data?._isDetail) return "";
+                  const processo = params.data as IProcesso;
+                  if (!processo.usuario_atribuido_id) return "Nao atribuido";
+                  return (
+                    getNomeResponsavelById(processo.usuario_atribuido_id) ||
+                    "Nao atribuido"
+                  );
+                },
+                valueFormatter: (params: any) =>
+                  params.value || "Nao atribuido",
+                valueSetter: (params: ValueSetterParams) => {
+                  const nomeSelecionado = String(params.newValue || "");
+
+                  if (!nomeSelecionado || nomeSelecionado === "Nao atribuido") {
+                    params.data.usuario_atribuido_id = null;
+                    params.data.usuarioAtribuido = null;
+                    return true;
+                  }
+
+                  const responsavelSelecionado =
+                    usuariosResponsaveisRef.current.find(
+                      (responsavel) => responsavel.nome === nomeSelecionado,
+                    );
+
+                  if (!responsavelSelecionado) return false;
+
+                  params.data.usuario_atribuido_id = responsavelSelecionado.id;
+                  params.data.usuarioAtribuido = {
+                    id: responsavelSelecionado.id,
+                    nome: responsavelSelecionado.nome,
+                  };
+                  return true;
+                },
+                width: 180,
+              },
+            ]
+          : []),
         {
           field: "unidadeRemetente",
           headerName: "Unidade Remetente",
@@ -1388,6 +1539,60 @@ export default function ProcessosSpreadsheet({
     // Os componentes internos (headerComponent, cellRenderer) já capturam valores atuais quando executam
   );
 
+  const colunasRenderizadas = useMemo(() => {
+    if (!colunasProcessos.length) return columnDefs;
+
+    const colunasFixas = new Set(COLUNAS_FIXAS_UI);
+    const colunasPermitidas = new Set(colunasProcessos);
+    const colunasBase = columnDefs.filter((coluna) => {
+      const field = String(coluna.field || "");
+      if (!field) return true;
+      if (colunasFixas.has(field)) return true;
+      return colunasPermitidas.has(field);
+    });
+
+    const mapaColunas = new Map(
+      colunasBase
+        .map((coluna) => [String(coluna.field || ""), coluna] as const)
+        .filter(([field]) => !!field),
+    );
+
+    const esquerda = colunasBase.filter((coluna) => {
+      const field = String(coluna.field || "");
+      return field === "checkbox" || field === "expand";
+    });
+
+    const direita = colunasBase.filter((coluna) => {
+      const field = String(coluna.field || "");
+      return field === "acoes";
+    });
+
+    const dinamicasOrdenadas = colunasProcessos
+      .map((field) => mapaColunas.get(field))
+      .filter((coluna): coluna is ColDef => !!coluna)
+      .filter((coluna) => {
+        const field = String(coluna.field || "");
+        return !colunasFixas.has(field);
+      });
+
+    const camposDinamicos = new Set(
+      dinamicasOrdenadas.map((coluna) => String(coluna.field || "")),
+    );
+
+    const dinamicasFaltantes = colunasBase.filter((coluna) => {
+      const field = String(coluna.field || "");
+      if (!field || colunasFixas.has(field)) return false;
+      return !camposDinamicos.has(field);
+    });
+
+    return [
+      ...esquerda,
+      ...dinamicasOrdenadas,
+      ...dinamicasFaltantes,
+      ...direita,
+    ];
+  }, [columnDefs, colunasProcessos]);
+
   const defaultColDef = useMemo<ColDef>(
     () => ({
       resizable: true,
@@ -1540,6 +1745,13 @@ export default function ProcessosSpreadsheet({
           if (processoAtualizado.prazo) {
             dataToCreate.prazo = convertDateField(processoAtualizado.prazo);
           }
+          if (
+            exibirAtribuicaoUsuario &&
+            processoAtualizado.usuario_atribuido_id
+          ) {
+            dataToCreate.usuario_atribuido_id =
+              processoAtualizado.usuario_atribuido_id;
+          }
 
           const response = await processoService.server.criar(dataToCreate);
 
@@ -1679,6 +1891,12 @@ export default function ProcessosSpreadsheet({
 
           // Enviar apenas interessado_id
           dataToUpdate.interessado_id = interessadoId;
+        } else if (
+          field === "usuario_atribuido_nome" &&
+          exibirAtribuicaoUsuario
+        ) {
+          dataToUpdate.usuario_atribuido_id =
+            processoAtualizado.usuario_atribuido_id || null;
         } else if (field === "unidadeRemetente") {
           dataToUpdate.unidade_remetente_id =
             processoAtualizado.unidadeRemetente?.id;
@@ -1743,6 +1961,7 @@ export default function ProcessosSpreadsheet({
                     await andamento.query.buscarPorProcesso(
                       session.access_token,
                       processoAtualizado.id,
+                      session.grupoAtivo?.id,
                     );
 
                   if (
@@ -1808,7 +2027,7 @@ export default function ProcessosSpreadsheet({
         savingRef.current.delete(processoAtualizado.id);
       }
     },
-    [session?.access_token, router, processosLocal],
+    [session?.access_token, router, processosLocal, exibirAtribuicaoUsuario],
   );
 
   const saveColumnState = useCallback(async () => {
@@ -1826,24 +2045,25 @@ export default function ProcessosSpreadsheet({
     saveTimerRef.current = setTimeout(async () => {
       if (gridRef.current?.api && session?.usuario) {
         const columnState = gridRef.current.api.getColumnState();
-        
-        // Remover sorting para não quebrar a expansão de linhas
-        const columnStateWithoutSort = columnState.map((col: any) => {
-          const { sort, sortIndex, ...rest } = col;
-          return rest;
-        });
-        
+        const ordemColunas = columnState
+          .map((col) => String(col.colId || "").trim())
+          .filter((colId) => colId && !COLUNAS_FIXAS_UI.includes(colId));
+
+        if (!ordemColunas.length) {
+          return;
+        }
+
         try {
           await salvarPreferencia({
-            chave: "ag-grid-column-state",
-            valor: columnStateWithoutSort,
+            chave: chavePreferencia,
+            valor: ordemColunas,
           });
         } catch (error) {
           console.error("Erro ao salvar estado das colunas:", error);
         }
       }
     }, 1000); // Debounce de 1 segundo
-  }, [session?.usuario, session?.id]);
+  }, [session?.usuario, session?.id, chavePreferencia]);
 
   const onGridReady = useCallback(
     async (params: GridReadyEvent) => {
@@ -1989,7 +2209,7 @@ export default function ProcessosSpreadsheet({
         <AgGridReact
           ref={gridRef}
           rowData={rowData}
-          columnDefs={columnDefs}
+          columnDefs={colunasRenderizadas}
           defaultColDef={defaultColDef}
           onCellValueChanged={onCellValueChanged}
           onGridReady={onGridReady}
@@ -1998,9 +2218,6 @@ export default function ProcessosSpreadsheet({
           singleClickEdit={true}
           stopEditingWhenCellsLoseFocus={true}
           onColumnMoved={saveColumnState}
-          onColumnResized={saveColumnState}
-          onColumnVisible={saveColumnState}
-          onColumnPinned={saveColumnState}
           pagination={false}
           suppressPaginationPanel={true}
           suppressHorizontalScroll={false}

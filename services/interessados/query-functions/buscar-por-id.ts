@@ -1,15 +1,18 @@
 /** @format */
 
 import { IInteressado } from "@/types/interessado";
+import { buildAuthHeaders } from "@/lib/http/auth-headers";
 
 const BACKEND = process.env.NEXT_PUBLIC_BACKEND;
 
-export async function buscarPorId(token: string, id: string) {
+export async function buscarPorId(
+  token: string,
+  id: string,
+  grupoAtivoId?: string,
+) {
   try {
     const resposta = await fetch(`${BACKEND}/interessados/${id}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: buildAuthHeaders(token, grupoAtivoId),
       next: {
         revalidate: 60,
         tags: ["interessados", id],

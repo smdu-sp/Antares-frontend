@@ -1,16 +1,19 @@
 /** @format */
 
 import { IUnidade } from "@/types/unidade";
+import { buildAuthHeaders } from "@/lib/http/auth-headers";
 
 const BACKEND = process.env.NEXT_PUBLIC_API_URL;
 
-export async function listarAutocomplete(token: string, busca: string = "") {
+export async function listarAutocomplete(
+  token: string,
+  busca: string = "",
+  grupoAtivoId?: string,
+) {
   try {
     const query = busca ? `?busca=${encodeURIComponent(busca)}` : "";
     const resposta = await fetch(`${BACKEND}unidades/lista-completa${query}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: buildAuthHeaders(token, grupoAtivoId),
       next: {
         revalidate: 60,
         tags: ["unidades"],

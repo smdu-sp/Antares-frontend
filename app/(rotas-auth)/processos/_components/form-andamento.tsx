@@ -20,7 +20,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { ICreateAndamento } from "@/types/processo";
-import { useForm } from "react-hook-form";
+import { useForm, ControllerRenderProps } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import * as andamento from "@/services/andamentos";
@@ -45,6 +45,114 @@ const formSchema = z.object({
     required_error: "Prazo é obrigatório",
   }),
 });
+
+type DestinoFieldProps = {
+  field: ControllerRenderProps<z.infer<typeof formSchema>, "destino">;
+  unidades: IUnidade[];
+  loadingUnidades: boolean;
+};
+
+function DestinoField({ field, unidades, loadingUnidades }: DestinoFieldProps) {
+  const [suggestionsDestino, setSuggestionsDestino] = useState<IUnidade[]>([]);
+  const [showSuggestionsDestino, setShowSuggestionsDestino] = useState(false);
+  const [inputDestino, setInputDestino] = useState("");
+  const [selectedDestinoId, setSelectedDestinoId] = useState("");
+  const timeoutRefDestino = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (field.value && field.value !== selectedDestinoId && unidades.length) {
+      const unidadeSelecionada = unidades.find((u) => u.id === field.value);
+      if (unidadeSelecionada) {
+        setInputDestino(
+          `${unidadeSelecionada.sigla} - ${unidadeSelecionada.nome}`,
+        );
+        setSelectedDestinoId(field.value);
+      }
+    }
+  }, [field.value, selectedDestinoId, unidades]);
+
+  function fetchSuggestionsDestino(q: string) {
+    if (!q || q.length < 1) {
+      setSuggestionsDestino(unidades);
+      return;
+    }
+    const filtrados = unidades.filter((u) =>
+      `${u.sigla} ${u.nome}`.toLowerCase().includes(q.toLowerCase()),
+    );
+    setSuggestionsDestino(filtrados);
+  }
+
+  function handleChangeDestino(e: React.ChangeEvent<HTMLInputElement>) {
+    const value = e.target.value;
+    setInputDestino(value);
+    field.onChange("");
+    setSelectedDestinoId("");
+    if (timeoutRefDestino.current) {
+      clearTimeout(timeoutRefDestino.current);
+    }
+    timeoutRefDestino.current = setTimeout(() => {
+      fetchSuggestionsDestino(value);
+      setShowSuggestionsDestino(true);
+    }, 250);
+  }
+
+  function handleSelectDestino(unidade: IUnidade) {
+    setInputDestino(`${unidade.sigla} - ${unidade.nome}`);
+    field.onChange(unidade.id);
+    setSelectedDestinoId(unidade.id);
+    setShowSuggestionsDestino(false);
+    setSuggestionsDestino([]);
+  }
+
+  return (
+    <FormItem className="relative">
+      <FormLabel>Unidade de Destino</FormLabel>
+      <FormControl>
+        <div>
+          {loadingUnidades ? (
+            <div className="flex items-center justify-center py-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="ml-2 text-sm text-muted-foreground">
+                Carregando unidades...
+              </span>
+            </div>
+          ) : (
+            <>
+              <Input
+                placeholder="Busque por sigla ou nome da unidade"
+                value={inputDestino}
+                onChange={handleChangeDestino}
+                autoComplete="off"
+                onBlur={() =>
+                  setTimeout(() => setShowSuggestionsDestino(false), 200)
+                }
+                onFocus={() => {
+                  fetchSuggestionsDestino(inputDestino);
+                  setShowSuggestionsDestino(true);
+                }}
+                style={{ appearance: "none" }}
+              />
+              {showSuggestionsDestino && suggestionsDestino.length > 0 && (
+                <ul className="absolute z-10 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-md mt-1 w-full max-h-48 overflow-auto shadow-lg">
+                  {suggestionsDestino.map((unidade) => (
+                    <li
+                      key={unidade.id}
+                      className="px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800"
+                      onMouseDown={() => handleSelectDestino(unidade)}
+                    >
+                      {unidade.sigla} - {unidade.nome}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+        </div>
+      </FormControl>
+      <FormMessage />
+    </FormItem>
+  );
+}
 
 export default function FormAndamento({
   processoId,
@@ -120,127 +228,13 @@ export default function FormAndamento({
         <FormField
           control={form.control}
           name="destino"
-          render={({ field }) => {
-            const [suggestionsDestino, setSuggestionsDestino] = useState<
-              IUnidade[]
-            >([]);
-            const [showSuggestionsDestino, setShowSuggestionsDestino] =
-              useState(false);
-            const [inputDestino, setInputDestino] = useState("");
-            const [selectedDestinoId, setSelectedDestinoId] = useState("");
-            const timeoutRefDestino = useRef<NodeJS.Timeout | null>(null);
-
-            useEffect(() => {
-              if (
-                field.value &&
-                field.value !== selectedDestinoId &&
-                unidades.length > 0
-              ) {
-                const unidadeSelecionada = unidades.find(
-                  (u) => u.id === field.value,
-                );
-                if (unidadeSelecionada) {
-                  setInputDestino(
-                    `${unidadeSelecionada.sigla} - ${unidadeSelecionada.nome}`,
-                  );
-                  setSelectedDestinoId(field.value);
-                }
-              }
-            }, [field.value, unidades, selectedDestinoId]);
-
-            async function fetchSuggestionsDestino(q: string) {
-              if (!q || q.length < 1) {
-                setSuggestionsDestino(unidades);
-                return;
-              }
-              try {
-                const filtrados = unidades.filter((u) =>
-                  `${u.sigla} ${u.nome}`
-                    .toLowerCase()
-                    .includes(q.toLowerCase()),
-                );
-                setSuggestionsDestino(filtrados);
-              } catch {
-                setSuggestionsDestino([]);
-              }
-            }
-
-            function handleChangeDestino(
-              e: React.ChangeEvent<HTMLInputElement>,
-            ) {
-              const value = e.target.value;
-              setInputDestino(value);
-              field.onChange("");
-              setSelectedDestinoId("");
-              if (timeoutRefDestino.current)
-                clearTimeout(timeoutRefDestino.current);
-              timeoutRefDestino.current = setTimeout(() => {
-                fetchSuggestionsDestino(value);
-                setShowSuggestionsDestino(true);
-              }, 250);
-            }
-
-            function handleSelectDestino(u: IUnidade) {
-              setInputDestino(`${u.sigla} - ${u.nome}`);
-              field.onChange(u.id);
-              setSelectedDestinoId(u.id);
-              setShowSuggestionsDestino(false);
-              setSuggestionsDestino([]);
-            }
-
-            return (
-              <FormItem className="relative">
-                <FormLabel>Unidade de Destino</FormLabel>
-                <FormControl>
-                  <div>
-                    {loadingUnidades ? (
-                      <div className="flex items-center justify-center py-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span className="ml-2 text-sm text-muted-foreground">
-                          Carregando unidades...
-                        </span>
-                      </div>
-                    ) : (
-                      <>
-                        <Input
-                          placeholder="Busque por sigla ou nome da unidade"
-                          value={inputDestino}
-                          onChange={handleChangeDestino}
-                          autoComplete="off"
-                          onBlur={() =>
-                            setTimeout(
-                              () => setShowSuggestionsDestino(false),
-                              200,
-                            )
-                          }
-                          onFocus={() => {
-                            fetchSuggestionsDestino(inputDestino);
-                            setShowSuggestionsDestino(true);
-                          }}
-                          style={{ appearance: "none" }}
-                        />
-                        {showSuggestionsDestino &&
-                          suggestionsDestino.length > 0 && (
-                            <ul className="absolute z-10 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-md mt-1 w-full max-h-48 overflow-auto shadow-lg">
-                              {suggestionsDestino.map((u) => (
-                                <li
-                                  key={u.id}
-                                  className="px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800"
-                                  onMouseDown={() => handleSelectDestino(u)}
-                                >
-                                  {u.sigla} - {u.nome}
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                      </>
-                    )}
-                  </div>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            );
-          }}
+          render={({ field }) => (
+            <DestinoField
+              field={field}
+              unidades={unidades}
+              loadingUnidades={loadingUnidades}
+            />
+          )}
         />
         <FormField
           control={form.control}

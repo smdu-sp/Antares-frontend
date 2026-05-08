@@ -1,15 +1,16 @@
 /** @format */
 
+import { buildAuthHeaders } from "@/lib/http/auth-headers";
+
 export async function contarEmAndamento(
   token: string,
+  grupoAtivoId?: string,
 ): Promise<{ ok: boolean; data: number | null; error: string | null }> {
   try {
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}processos/contar/em-andamento`,
       {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: buildAuthHeaders(token, grupoAtivoId),
         cache: "no-store",
       },
     );

@@ -63,6 +63,8 @@ export interface IProcesso {
   data_resposta_final?: Date | null;
   resposta_final?: string | null;
   data_envio_unidade?: Date | null;
+  usuario_atribuido_id?: string | null;
+  usuarioAtribuido?: { id: string; nome: string } | null;
   ativo: boolean;
   criadoEm: Date;
   atualizadoEm: Date;
@@ -78,6 +80,7 @@ export interface ICreateProcesso {
   origem: string;
   data_recebimento: string;
   data_envio_unidade?: string;
+  usuario_atribuido_id?: string;
 }
 
 export interface IUpdateProcesso {
@@ -93,6 +96,7 @@ export interface IUpdateProcesso {
   data_envio_unidade?: string;
   data_resposta_final?: string;
   resposta_final?: string;
+  usuario_atribuido_id?: string | null;
 }
 
 export interface ICreateAndamento {
@@ -136,6 +140,22 @@ export interface IRespostaProcesso {
     | IPaginadoProcesso
     | { removido: boolean }
     | null;
+  status: number;
+}
+
+export interface IPoliticaColunasProcesso {
+  colunasFixas?: string[];
+  colunasDisponiveis?: string[];
+  ordemPadrao?: string[];
+  ordemUsuario?: string[];
+  ordemEfetiva?: string[];
+  chavePreferenciaOrdem?: string;
+}
+
+export interface IRespostaPoliticaColunasProcesso {
+  ok: boolean;
+  error: string | null;
+  data: IPoliticaColunasProcesso | null;
   status: number;
 }
 

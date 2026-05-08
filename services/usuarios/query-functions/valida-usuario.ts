@@ -1,6 +1,7 @@
 /** @format */
 
 import { auth } from "@/lib/auth/auth";
+import { buildAuthHeaders } from "@/lib/http/auth-headers";
 import { IRespostaUsuario, IUsuario } from "@/types/usuario";
 import { redirect } from "next/navigation";
 
@@ -11,10 +12,7 @@ export async function validaUsuario(): Promise<IRespostaUsuario> {
   try {
     const usuario = await fetch(`${baseURL}usuarios/valida-usuario`, {
       method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
-      },
+      headers: buildAuthHeaders(session.access_token, session.grupoAtivo?.id),
     });
     const data = await usuario.json();
     return {
