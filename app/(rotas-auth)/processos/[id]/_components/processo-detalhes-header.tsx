@@ -14,6 +14,7 @@ import {
   getUltimoAndamento,
   calcularDiasRestantes,
   getStatusPrazo,
+  formatarData,
 } from "@/app/(rotas-auth)/processos/_components/utils";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -198,11 +199,7 @@ export default function ProcessoDetalhesHeader({
                   Prazo do Processo
                 </p>
                 <p className="text-sm font-medium">
-                  {new Date(processoProp.prazo).toLocaleDateString("pt-BR", {
-                    day: "2-digit",
-                    month: "long",
-                    year: "numeric",
-                  })}
+                  {formatarData(processoProp.prazo, { day: "2-digit", month: "long", year: "numeric" })}
                 </p>
               </div>
             </div>
@@ -232,22 +229,8 @@ export default function ProcessoDetalhesHeader({
                 <p className="text-xs text-muted-foreground">Prazo Atual</p>
                 <p className="text-sm font-medium">
                   {ultimoAndamento.prorrogacao
-                    ? new Date(ultimoAndamento.prorrogacao).toLocaleDateString(
-                        "pt-BR",
-                        {
-                          day: "2-digit",
-                          month: "long",
-                          year: "numeric",
-                        },
-                      )
-                    : new Date(ultimoAndamento.prazo).toLocaleDateString(
-                        "pt-BR",
-                        {
-                          day: "2-digit",
-                          month: "long",
-                          year: "numeric",
-                        },
-                      )}
+                    ? formatarData(ultimoAndamento.prorrogacao, { day: "2-digit", month: "long", year: "numeric" })
+                    : formatarData(ultimoAndamento.prazo, { day: "2-digit", month: "long", year: "numeric" })}
                 </p>
               </div>
             </div>

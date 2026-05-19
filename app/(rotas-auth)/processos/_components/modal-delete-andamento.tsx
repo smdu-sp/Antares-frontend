@@ -19,6 +19,7 @@ import { useTransition, useState } from "react";
 import { toast } from "sonner";
 import { IAndamento } from "@/types/processo";
 import { useSession } from "next-auth/react";
+import { formatarData } from "@/app/(rotas-auth)/processos/_components/utils";
 
 export default function ModalDeleteAndamento({
   andamento: and,
@@ -81,11 +82,7 @@ export default function ModalDeleteAndamento({
             </p>
             <p>
               <strong>Prazo:</strong>{" "}
-              {new Date(and.prazo).toLocaleDateString("pt-BR", {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric",
-              })}
+              {formatarData(and.prazo)}
             </p>
           </div>
           <p className="text-sm text-muted-foreground">

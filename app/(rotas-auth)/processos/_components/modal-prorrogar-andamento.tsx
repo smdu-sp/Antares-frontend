@@ -33,6 +33,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { IAndamento } from "@/types/processo";
+import { parseUTCDate } from "@/app/(rotas-auth)/processos/_components/utils";
 
 const formSchema = z.object({
   nova_prorrogacao: z.date({ required_error: "Data é obrigatória" }),
@@ -51,9 +52,7 @@ export default function ModalProrrogarAndamento({
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      nova_prorrogacao: andamento.prorrogacao
-        ? new Date(andamento.prorrogacao)
-        : new Date(),
+      nova_prorrogacao: parseUTCDate(andamento.prorrogacao) ?? new Date(),
     },
   });
 

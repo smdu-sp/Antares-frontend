@@ -48,6 +48,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { canAdmin } from "@/lib/access-control";
+import { parseUTCDate } from "@/app/(rotas-auth)/processos/_components/utils";
 
 const formSchema = z.object({
   numero_sei: z.string().min(3, "Número SEI deve ter ao menos 3 caracteres"),
@@ -476,16 +477,10 @@ export default function FormProcesso({
         processoData?.unidade_remetente ||
         "",
       origem: processoData?.origem || "",
-      data_recebimento: processoData?.data_recebimento
-        ? new Date(processoData.data_recebimento)
-        : new Date(),
-      data_envio_unidade: processoData?.data_envio_unidade
-        ? new Date(processoData.data_envio_unidade)
-        : undefined,
+      data_recebimento: parseUTCDate(processoData?.data_recebimento) ?? new Date(),
+      data_envio_unidade: parseUTCDate(processoData?.data_envio_unidade) ?? undefined,
       usuario_atribuido_id: processoData?.usuario_atribuido_id || "",
-      prazo: processoData?.prazo
-        ? new Date(processoData.prazo)
-        : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 dias à frente
+      prazo: parseUTCDate(processoData?.prazo) ?? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 dias à frente
     },
   });
 

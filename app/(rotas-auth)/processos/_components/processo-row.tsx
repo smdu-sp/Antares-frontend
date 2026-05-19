@@ -14,6 +14,7 @@ import {
   getUltimoAndamento,
   calcularDiasRestantes,
   getStatusPrazo,
+  formatarData,
 } from "./utils";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -56,24 +57,10 @@ export default function ProcessoRow({ processo }: { processo: IProcesso }) {
         <TableCell>
           {ultimoAndamento ? (
             <div className="space-y-1">
-              <div>
-                {new Date(ultimoAndamento.prazo).toLocaleDateString("pt-BR", {
-                  day: "2-digit",
-                  month: "2-digit",
-                  year: "numeric",
-                })}
-              </div>
+              <div>{formatarData(ultimoAndamento.prazo)}</div>
               {ultimoAndamento.prorrogacao && (
                 <div className="text-xs text-muted-foreground">
-                  Prorrogação:{" "}
-                  {new Date(ultimoAndamento.prorrogacao).toLocaleDateString(
-                    "pt-BR",
-                    {
-                      day: "2-digit",
-                      month: "2-digit",
-                      year: "numeric",
-                    },
-                  )}
+                  Prorrogação: {formatarData(ultimoAndamento.prorrogacao)}
                 </div>
               )}
             </div>
@@ -172,11 +159,7 @@ export default function ProcessoRow({ processo }: { processo: IProcesso }) {
                               </span>
                             </td>
                             <td className="p-3 text-xs">
-                              {andamento.prazo
-                                ? new Date(andamento.prazo).toLocaleDateString(
-                                    "pt-BR",
-                                  )
-                                : "-"}
+                              {andamento.prazo ? formatarData(andamento.prazo) : "-"}
                             </td>
                             <td className="p-3 text-xs text-muted-foreground max-w-xs truncate">
                               {andamento.observacao || "-"}

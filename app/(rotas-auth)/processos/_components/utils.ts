@@ -4,18 +4,36 @@ import { IAndamento, StatusAndamento } from '@/types/processo';
 import { Clock, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { LucideIcon } from 'lucide-react';
 
+// Converte uma data UTC (como as vindas do banco) para Date local usando os componentes UTC,
+// evitando o shift de timezone que faz datas aparecerem um dia antes no fuso UTC-3.
+export function parseUTCDate(dateStr: Date | string | null | undefined): Date | null {
+	if (!dateStr) return null;
+	const d = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
+	if (isNaN(d.getTime())) return null;
+	return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
+
+// Formata uma data de campo date-only (prazo, prorrogacao, etc.) em pt-BR sem shift de timezone.
+export function formatarData(
+	dateStr: Date | string | null | undefined,
+	options: Intl.DateTimeFormatOptions = { day: '2-digit', month: '2-digit', year: 'numeric' },
+): string {
+	const d = parseUTCDate(dateStr);
+	if (!d) return '-';
+	return d.toLocaleDateString('pt-BR', options);
+}
+
 // Função para calcular dias restantes (considera apenas a data, sem hora)
 export function calcularDiasRestantes(
 	prazo: Date | string,
 	prorrogacao?: Date | string | null,
 ): number {
-	const dataLimite = prorrogacao ? new Date(prorrogacao) : new Date(prazo);
+	const raw = prorrogacao ? prorrogacao : prazo;
+	// Usa componentes UTC para evitar shift de timezone em campos date-only vindos do banco
+	const dataLimite = parseUTCDate(raw)!;
 	const hoje = new Date();
-	
-	// Zera as horas para comparar apenas as datas
 	hoje.setHours(0, 0, 0, 0);
-	dataLimite.setHours(0, 0, 0, 0);
-	
+
 	const diffTime = dataLimite.getTime() - hoje.getTime();
 	const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 	return diffDays;

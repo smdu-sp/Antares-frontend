@@ -34,6 +34,7 @@ import { canAdmin, canEdit } from "@/lib/access-control";
 import {
   calcularDiasRestantes,
   getStatusPrazo,
+  formatarData,
 } from "@/app/(rotas-auth)/processos/_components/utils";
 import ModalAndamento from "@/app/(rotas-auth)/processos/_components/modal-andamento";
 import ModalRespostaFinal from "@/app/(rotas-auth)/processos/_components/modal-resposta-final";
@@ -690,11 +691,7 @@ function AndamentoCard({
             <div className="flex-1">
               <p className="text-xs text-muted-foreground">Prazo Original</p>
               <p className="text-base font-medium">
-                {new Date(andamento.prazo).toLocaleDateString("pt-BR", {
-                  day: "2-digit",
-                  month: "long",
-                  year: "numeric",
-                })}
+                {formatarData(andamento.prazo, { day: "2-digit", month: "long", year: "numeric" })}
               </p>
             </div>
           </div>
@@ -717,11 +714,7 @@ function AndamentoCard({
                   Prazo Prorrogado
                 </p>
                 <p className="text-base font-medium text-orange-600 dark:text-orange-400">
-                  {new Date(andamento.prorrogacao).toLocaleDateString("pt-BR", {
-                    day: "2-digit",
-                    month: "long",
-                    year: "numeric",
-                  })}
+                  {formatarData(andamento.prorrogacao, { day: "2-digit", month: "long", year: "numeric" })}
                 </p>
                 {andamento.usuarioProrrogacao && (
                   <p className="text-xs text-muted-foreground mt-1">
@@ -866,20 +859,10 @@ function AndamentoRow({
           </div>
         </TableCell>
         <TableCell className="text-sm">
-          {new Date(andamento.prazo).toLocaleDateString("pt-BR", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-          })}
+          {formatarData(andamento.prazo)}
         </TableCell>
         <TableCell className="text-sm">
-          {andamento.conclusao
-            ? new Date(andamento.conclusao).toLocaleDateString("pt-BR", {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric",
-              })
-            : "-"}
+          {andamento.conclusao ? formatarData(andamento.conclusao) : "-"}
         </TableCell>
         <TableCell className="text-sm">
           {andamento.usuario?.nomeSocial || andamento.usuario?.nome || "-"}
