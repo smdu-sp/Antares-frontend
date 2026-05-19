@@ -1040,6 +1040,26 @@ export default function ProcessosSpreadsheet({
     setProcessosLocal([...processosLocal, novoProcesso]);
   };
 
+  const compareDateValues = useCallback((valueA: unknown, valueB: unknown) => {
+    const toTime = (value: unknown) => {
+      if (!value) return null;
+      if (value instanceof Date) return value.getTime();
+      if (typeof value === "string" || typeof value === "number") {
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? null : date.getTime();
+      }
+      return null;
+    };
+
+    const timeA = toTime(valueA);
+    const timeB = toTime(valueB);
+
+    if (timeA === null && timeB === null) return 0;
+    if (timeA === null) return -1;
+    if (timeB === null) return 1;
+    return timeA - timeB;
+  }, []);
+
   const columnDefs = useMemo(
     () =>
       [
@@ -1360,6 +1380,7 @@ export default function ProcessosSpreadsheet({
           headerName: "Data Recebimento",
           editable: true,
           cellEditor: DateCellEditor,
+          comparator: (valueA, valueB) => compareDateValues(valueA, valueB),
           valueGetter: (params: any) => {
             if (!params.data?.data_recebimento) return null;
             return new Date(params.data.data_recebimento);
@@ -1383,6 +1404,7 @@ export default function ProcessosSpreadsheet({
           headerName: "Data Envio para Unidade",
           editable: true,
           cellEditor: DateCellEditor,
+          comparator: (valueA, valueB) => compareDateValues(valueA, valueB),
           valueGetter: (params: any) => {
             if (!params.data?.data_envio_unidade) return null;
             return new Date(params.data.data_envio_unidade);
@@ -1406,6 +1428,7 @@ export default function ProcessosSpreadsheet({
           headerName: "Prazo",
           editable: true,
           cellEditor: DateCellEditor,
+          comparator: (valueA, valueB) => compareDateValues(valueA, valueB),
           valueGetter: (params: any) => {
             if (!params.data?.prazo) return null;
             return new Date(params.data.prazo);
@@ -1453,6 +1476,7 @@ export default function ProcessosSpreadsheet({
           headerName: "Prorrogação",
           editable: true,
           cellEditor: DateCellEditor,
+          comparator: (valueA, valueB) => compareDateValues(valueA, valueB),
           valueGetter: (params: any) => {
             const value = params.data?.data_prorrogacao;
             if (!value) return null;
@@ -1487,6 +1511,7 @@ export default function ProcessosSpreadsheet({
           headerName: "Data Resposta Final",
           editable: true,
           cellEditor: DateCellEditor,
+          comparator: (valueA, valueB) => compareDateValues(valueA, valueB),
           valueGetter: (params: any) => {
             if (!params.data?.data_resposta_final) return null;
             return new Date(params.data.data_resposta_final);
