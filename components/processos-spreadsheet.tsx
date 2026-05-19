@@ -1376,11 +1376,8 @@ export default function ProcessosSpreadsheet({
           headerName: "Data Recebimento",
           editable: true,
           cellEditor: DateCellEditor,
-<<<<<<< HEAD
           comparator: (valueA, valueB) => compareDateValues(valueA, valueB),
-=======
           sortingOrder: ["desc", "asc", null],
->>>>>>> 39fac358cbbce5a68239be560ecb60114267837f
           valueGetter: (params: any) => {
             if (!params.data?.data_recebimento) return null;
             return parseUTCDate(params.data.data_recebimento);
