@@ -37,6 +37,7 @@ import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { parseUTCDate } from "@/app/(rotas-auth)/processos/_components/utils";
 import {
   ChevronDown,
   ChevronRight,
@@ -432,8 +433,7 @@ function AndamentosDetail({
         editable: true,
         cellEditor: DateCellEditor,
         valueGetter: (params) => {
-          if (!params.data?.data_envio) return null;
-          return new Date(params.data.data_envio);
+          return parseUTCDate(params.data?.data_envio);
         },
         valueSetter: (params) => {
           params.data.data_envio = params.newValue
@@ -453,8 +453,7 @@ function AndamentosDetail({
         editable: true,
         cellEditor: DateCellEditor,
         valueGetter: (params) => {
-          if (!params.data?.prazo) return null;
-          return new Date(params.data.prazo);
+          return parseUTCDate(params.data?.prazo);
         },
         valueSetter: (params) => {
           params.data.prazo = params.newValue
@@ -476,10 +475,9 @@ function AndamentosDetail({
           if (!params.value)
             return { backgroundColor: "transparent", color: "inherit" };
 
-          const prazo = new Date(params.value);
+          const prazo = params.value as Date;
           const hoje = new Date();
           hoje.setHours(0, 0, 0, 0);
-          prazo.setHours(0, 0, 0, 0);
 
           const diffDays = Math.ceil(
             (prazo.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24),
@@ -505,8 +503,7 @@ function AndamentosDetail({
         editable: true,
         cellEditor: DateCellEditor,
         valueGetter: (params) => {
-          if (!params.data?.prorrogacao) return null;
-          return new Date(params.data.prorrogacao);
+          return parseUTCDate(params.data?.prorrogacao);
         },
         valueSetter: (params) => {
           params.data.prorrogacao = params.newValue
@@ -536,8 +533,7 @@ function AndamentosDetail({
         editable: true,
         cellEditor: DateCellEditor,
         valueGetter: (params) => {
-          if (!params.data?.data_resposta) return null;
-          return new Date(params.data.data_resposta);
+          return parseUTCDate(params.data?.data_resposta);
         },
         valueSetter: (params) => {
           params.data.data_resposta = params.newValue
@@ -1380,10 +1376,14 @@ export default function ProcessosSpreadsheet({
           headerName: "Data Recebimento",
           editable: true,
           cellEditor: DateCellEditor,
+<<<<<<< HEAD
           comparator: (valueA, valueB) => compareDateValues(valueA, valueB),
+=======
+          sortingOrder: ["desc", "asc", null],
+>>>>>>> 39fac358cbbce5a68239be560ecb60114267837f
           valueGetter: (params: any) => {
             if (!params.data?.data_recebimento) return null;
-            return new Date(params.data.data_recebimento);
+            return parseUTCDate(params.data.data_recebimento);
           },
           valueSetter: (params: any) => {
             params.data.data_recebimento = params.newValue
@@ -1407,7 +1407,7 @@ export default function ProcessosSpreadsheet({
           comparator: (valueA, valueB) => compareDateValues(valueA, valueB),
           valueGetter: (params: any) => {
             if (!params.data?.data_envio_unidade) return null;
-            return new Date(params.data.data_envio_unidade);
+            return parseUTCDate(params.data.data_envio_unidade);
           },
           valueSetter: (params: any) => {
             params.data.data_envio_unidade = params.newValue
@@ -1431,7 +1431,7 @@ export default function ProcessosSpreadsheet({
           comparator: (valueA, valueB) => compareDateValues(valueA, valueB),
           valueGetter: (params: any) => {
             if (!params.data?.prazo) return null;
-            return new Date(params.data.prazo);
+            return parseUTCDate(params.data.prazo);
           },
           valueSetter: (params: any) => {
             params.data.prazo = params.newValue
@@ -1454,8 +1454,9 @@ export default function ProcessosSpreadsheet({
 
             if (!params.value)
               return { backgroundColor: "transparent", color: "inherit" };
-            const prazo = new Date(params.value);
+            const prazo = params.value as Date;
             const hoje = new Date();
+            hoje.setHours(0, 0, 0, 0);
             const diffDays = Math.ceil(
               (prazo.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24),
             );
@@ -1478,19 +1479,7 @@ export default function ProcessosSpreadsheet({
           cellEditor: DateCellEditor,
           comparator: (valueA, valueB) => compareDateValues(valueA, valueB),
           valueGetter: (params: any) => {
-            const value = params.data?.data_prorrogacao;
-            if (!value) return null;
-
-            // Se já é uma Date, retorna
-            if (value instanceof Date) return value;
-
-            // Se é string, tenta converter
-            if (typeof value === "string") {
-              const date = new Date(value);
-              return isNaN(date.getTime()) ? null : date;
-            }
-
-            return null;
+            return parseUTCDate(params.data?.data_prorrogacao);
           },
           valueSetter: (params: any) => {
             params.data.data_prorrogacao = params.newValue
@@ -1513,8 +1502,7 @@ export default function ProcessosSpreadsheet({
           cellEditor: DateCellEditor,
           comparator: (valueA, valueB) => compareDateValues(valueA, valueB),
           valueGetter: (params: any) => {
-            if (!params.data?.data_resposta_final) return null;
-            return new Date(params.data.data_resposta_final);
+            return parseUTCDate(params.data?.data_resposta_final);
           },
           valueSetter: (params: any) => {
             params.data.data_resposta_final = params.newValue
