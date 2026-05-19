@@ -25,6 +25,7 @@ import { ProcessosGrid } from "./_components/processos-grid";
 import { BtnLimparFiltros } from "@/components/btn-limpar-filtros";
 import MetricsToggle from "./_components/metrics-toggle";
 import { AlertCircle } from "lucide-react";
+import { parseUTCDate } from "@/app/(rotas-auth)/processos/_components/utils";
 
 function normalizarCampoColuna(coluna: string): string {
   if (coluna === "usuario_atribuido_id") return "usuario_atribuido_nome";
@@ -192,16 +193,17 @@ async function Home({
         );
       }
 
-      // Buscar TODOS os processos sem filtros do backend (porque os filtros do backend não estão funcionando corretamente)
       const response = await processo.query.buscarTudo(
         session.access_token || "",
-        1,
-        1000, // Buscar muitos processos para filtrar no frontend
-        buscaStr as string,
-        false, // Não usar filtro do backend
-        false, // Não usar filtro do backend
-        undefined,
+        Number(pagina),
+        Number(limite),
+        buscaStr,
+        vencendoHojeStr === "true",
+        atrasadosStr === "true",
+        unidadeFiltroStr || undefined,
         grupoAtivoId,
+        interessadoFiltroStr || undefined,
+        concluidosStr === "true",
       );
       const { data } = response;
       ok = response.ok;
@@ -211,185 +213,27 @@ async function Home({
           pagina = paginado.pagina || 1;
           limite = paginado.limite || 10;
           total = paginado.total || 0;
-          dados = paginado.data || [];
-
-          // Filtrar apenas processos ativos (soft delete)
-          dados = dados.filter((p) => p.ativo === true);
+          dados = (paginado.data || []).map((p: any) => {
+            // Normaliza interessado: backend retorna objeto {id, valor}, grid espera string
+            if (p.interessado && typeof p.interessado === "object") {
+              p.interessado = p.interessado.valor || "";
+            }
+            return p;
+          });
         }
       }
 
-      // IMPORTANTE: Carregar unidades e interessados SEMPRE, independente de haver processos
-      // Pois são necessários para os editores autocomplete funcionarem na grid
-      const unidadesResponse = await unidade.listaCompleta(
-        session.access_token,
-      );
-      const interessadosResult = await interessado.query.listaCompleta(
-        session.access_token,
-      );
+      const [unidadesResponse, interessadosResult] = await Promise.all([
+        unidade.listaCompleta(session.access_token),
+        interessado.query.listaCompleta(session.access_token),
+      ]);
 
-      let unidadesMap = new Map<string, IUnidade>();
       if (unidadesResponse.ok && unidadesResponse.data) {
-        const unidades = unidadesResponse.data as IUnidade[];
-        unidadesLista = unidades; // Armazenar para uso no spreadsheet
-        unidadesMap = new Map(unidades.map((u) => [u.id, u]));
+        unidadesLista = unidadesResponse.data as IUnidade[];
       }
 
-      let interessadosMap = new Map<string, IInteressado>();
       if (interessadosResult && Array.isArray(interessadosResult)) {
         interessadosLista = interessadosResult;
-        interessadosMap = new Map(interessadosResult.map((i) => [i.id, i]));
-      }
-
-      // Enriquecer processos com dados de interessados e unidades (se houver processos)
-      if (dados.length > 0) {
-        dados = dados.map((p) => {
-          const proc = p as any;
-
-          // Processar interessado se tiver interessado_id
-          if (proc.interessado_id) {
-            const interessadoObj = interessadosMap.get(proc.interessado_id);
-            if (interessadoObj) {
-              proc.interessado = interessadoObj.valor;
-            } else {
-              proc.interessado = `Interessado não encontrado (ID: ${proc.interessado_id.substring(
-                0,
-                8,
-              )}...)`;
-            }
-          }
-
-          // Processar unidade remetente
-          if (proc.unidade_remetente_id) {
-            const unidadeRem = unidadesMap.get(proc.unidade_remetente_id);
-            if (unidadeRem) {
-              proc.unidadeRemetente = unidadeRem;
-            } else {
-              // Unidade não encontrada - pode estar inativa ou deletada
-              proc.unidade_remetente = `Unidade não encontrada (ID: ${proc.unidade_remetente_id.substring(
-                0,
-                8,
-              )}...)`;
-            }
-          }
-
-          // Filtrar apenas andamentos ativos (soft delete)
-          if (proc.andamentos && Array.isArray(proc.andamentos)) {
-            proc.andamentos = proc.andamentos.filter(
-              (a: IAndamento) => a.ativo === true,
-            );
-          }
-
-          return proc;
-        });
-
-        // Aplicar filtros client-side (porque o backend não está filtrando corretamente)
-        const hoje = new Date();
-        hoje.setHours(0, 0, 0, 0);
-
-        // Filtro de busca (procura em numero_sei, assunto, interessado, resposta_final e campos dos andamentos)
-        if (buscaStr.trim()) {
-          const termoBusca = buscaStr.toLowerCase().trim();
-          dados = dados.filter((p: any) => {
-            // Busca nos campos principais do processo
-            const buscaProcesso =
-              p.numero_sei?.toLowerCase().includes(termoBusca) ||
-              p.assunto?.toLowerCase().includes(termoBusca) ||
-              p.interessado?.toLowerCase().includes(termoBusca) ||
-              p.resposta_final?.toLowerCase().includes(termoBusca);
-
-            // Busca nas observações e outros campos dos andamentos
-            const buscaAndamentos = p.andamentos?.some(
-              (andamento: any) =>
-                andamento.observacao?.toLowerCase().includes(termoBusca) ||
-                andamento.origem?.toLowerCase().includes(termoBusca) ||
-                andamento.destino?.toLowerCase().includes(termoBusca) ||
-                andamento.resposta?.toLowerCase().includes(termoBusca),
-            );
-
-            return buscaProcesso || buscaAndamentos;
-          });
-        }
-
-        // Filtro por interessado
-        if (interessadoFiltroStr.trim()) {
-          const interessadoBusca = interessadoFiltroStr.toLowerCase().trim();
-          dados = dados.filter((p: any) => {
-            return p.interessado?.toLowerCase().includes(interessadoBusca);
-          });
-        }
-
-        // Filtro por unidade (remetente ou destinatária)
-        if (unidadeFiltroStr.trim()) {
-          const unidadeBusca = unidadeFiltroStr.toLowerCase().trim();
-          dados = dados.filter((p: any) => {
-            // Busca na unidade remetente (nome ou sigla)
-            const unidadeRemBusca =
-              p.unidadeRemetente?.nome?.toLowerCase().includes(unidadeBusca) ||
-              p.unidadeRemetente?.sigla?.toLowerCase().includes(unidadeBusca);
-
-            // Busca na unidade destinatária (nome ou sigla)
-            const unidadeDestBusca =
-              p.unidadeDestino?.nome?.toLowerCase().includes(unidadeBusca) ||
-              p.unidadeDestino?.sigla?.toLowerCase().includes(unidadeBusca);
-
-            return unidadeRemBusca || unidadeDestBusca;
-          });
-        }
-
-        if (vencendoHojeStr === "true") {
-          dados = dados.filter((p: any) => {
-            if (!p.prazo) return false;
-            const prazo = new Date(p.prazo);
-            prazo.setHours(0, 0, 0, 0);
-            return prazo.getTime() === hoje.getTime();
-          });
-        }
-
-        if (atrasadosStr === "true") {
-          dados = dados.filter((p: any) => {
-            // Excluir processos concluídos
-            if (p.data_resposta_final || p.resposta_final) {
-              return false;
-            }
-            if (p.andamentos && p.andamentos.length > 0) {
-              if (p.andamentos.every((a: any) => a.status === "CONCLUIDO")) {
-                return false;
-              }
-            }
-
-            // Verificar se tem prazo vencido
-            if (!p.prazo) return false;
-            const prazo = new Date(p.prazo);
-            prazo.setHours(0, 0, 0, 0);
-            return prazo.getTime() < hoje.getTime();
-          });
-        }
-
-        if (concluidosStr === "true") {
-          dados = dados.filter((p: any) => {
-            // Um processo é considerado concluído se:
-            // 1. Tem resposta final (data_resposta_final existe), OU
-            // 2. Todos os andamentos estão com status CONCLUIDO
-            if (p.data_resposta_final || p.resposta_final) {
-              return true;
-            }
-
-            if (p.andamentos && p.andamentos.length > 0) {
-              return p.andamentos.every((a: any) => a.status === "CONCLUIDO");
-            }
-
-            return false;
-          });
-        }
-
-        // Aplicar paginação após filtragem
-        const startIndex = (Number(pagina) - 1) * Number(limite);
-        const endIndex = startIndex + Number(limite);
-        const dadosPaginados = dados.slice(startIndex, endIndex);
-
-        // Atualizar total com o número de itens filtrados
-        total = dados.length;
-        dados = dadosPaginados;
       }
 
       // Buscar total geral (sem filtros) para o dashboard
@@ -453,19 +297,20 @@ async function Home({
           if (a.status === StatusAndamento.CONCLUIDO) {
             andamentosConcluidos++;
           } else {
-            // Verificar prazo
-            const prazo = new Date(a.prazo);
-            prazo.setHours(0, 0, 0, 0);
-            const diffDays = Math.ceil(
-              (prazo.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24),
-            );
-
-            if (diffDays < 0) {
-              andamentosVencidos++;
-            } else if (diffDays === 0) {
-              andamentosVencendoHoje++;
-            } else {
+            const prazo = parseUTCDate(a.prazo);
+            if (!prazo) {
               andamentosEmAndamento++;
+            } else {
+              const diffDays = Math.ceil(
+                (prazo.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24),
+              );
+              if (diffDays < 0) {
+                andamentosVencidos++;
+              } else if (diffDays === 0) {
+                andamentosVencendoHoje++;
+              } else {
+                andamentosEmAndamento++;
+              }
             }
           }
         });

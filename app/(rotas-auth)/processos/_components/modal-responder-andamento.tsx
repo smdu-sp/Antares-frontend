@@ -40,6 +40,7 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { IAndamento, StatusAndamento } from "@/types/processo";
 import { useSession } from "next-auth/react";
+import { parseUTCDate } from "@/app/(rotas-auth)/processos/_components/utils";
 
 const formSchema = z.object({
   data_resposta: z.date({ required_error: "Data é obrigatória" }),
@@ -62,9 +63,7 @@ export default function ModalResponderAndamento({
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      data_resposta: andamento.conclusao
-        ? new Date(andamento.conclusao)
-        : new Date(),
+      data_resposta: parseUTCDate(andamento.conclusao) ?? new Date(),
       resposta: "",
     },
   });

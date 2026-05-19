@@ -12,10 +12,7 @@ export async function listaCompleta(
     const response = await fetch(url, {
       method: "GET",
       headers: buildAuthHeaders(token, grupoAtivoId),
-      next: {
-        revalidate: 60,
-        tags: ["interessados"],
-      },
+      cache: "no-store",
     });
 
     if (!response.ok) {

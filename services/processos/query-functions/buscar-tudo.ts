@@ -10,8 +10,10 @@ export async function buscarTudo(
   busca: string = "",
   vencendoHoje: boolean = false,
   atrasados: boolean = false,
-  unidadeDestino?: string,
+  unidade?: string,
   grupoAtivoId?: string,
+  interessado?: string,
+  concluidos?: boolean,
 ): Promise<IRespostaProcesso> {
   const baseURL = process.env.NEXT_PUBLIC_API_URL;
   try {
@@ -22,7 +24,9 @@ export async function buscarTudo(
       ...(busca && { busca }),
       ...(vencendoHoje && { vencendoHoje: "true" }),
       ...(atrasados && { atrasados: "true" }),
-      ...(unidadeDestino && { unidadeDestino }),
+      ...(unidade && { unidade }),
+      ...(interessado && { interessado }),
+      ...(concluidos && { concluidos: "true" }),
     });
 
     const processos = await fetch(`${baseURL}processos?${params.toString()}`, {
